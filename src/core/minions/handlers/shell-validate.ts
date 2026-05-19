@@ -140,7 +140,7 @@ export function validateShellJobParams(
   // `WORD=value` shell-inline-assignment patterns at the start of cmd or
   // anywhere in argv, anchored to known shadow-key names. The check is a
   // signal-strength heuristic — a determined caller can still base64-encode or
-  // obfuscate, but the common typo / wintermute-pattern shapes are caught.
+  // obfuscate, but the common typo / PR-1137-pattern shapes are caught.
   const SHADOW_INLINE_RE = new RegExp(
     `(?:^|[\\s;&|])(${Array.from(ALL_SHADOW_KEYS).join('|')})=`,
     'i',

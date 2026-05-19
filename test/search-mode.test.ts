@@ -272,8 +272,11 @@ describe('knobsHash determinism + cross-mode separation (CDX-4)', () => {
 
   test('KNOBS_HASH_VERSION constant exposed for migrations to bump on schema change', () => {
     // v0.35.0.0+ bumped 1→2 to fold reranker fields into the cache key.
-    // v0.35.6.0   bumped 2→3 to fold floor_ratio into the cache key
-    // (codex outside-voice T1 — preventing cross-floor cache contamination).
+    // v0.35.6.0  bumped 2→3 to fold floor_ratio into the cache key
+    //   (codex T1 — preventing cross-floor cache contamination).
+    // v0.36     also extends v=3 with embedding column + provider (D8 / CDX-2)
+    //   so a query against `embedding_voyage` never shares a cache row with
+    //   `embedding`, even when all other knobs match.
     expect(KNOBS_HASH_VERSION).toBe(3);
   });
 
