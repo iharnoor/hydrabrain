@@ -22,7 +22,7 @@ import { join } from 'path';
 import { execSync } from 'child_process';
 import type { BrainEngine } from '../core/engine.ts';
 import { loadPreferences } from '../core/preferences.ts';
-import { loadConfig } from '../core/config.ts';
+import { loadConfig, gbrainPath as gbrainHomePath } from '../core/config.ts';
 import { ChildWorkerSupervisor } from '../core/minions/child-worker-supervisor.ts';
 
 function parseArg(args: string[], flag: string): string | undefined {
@@ -118,10 +118,15 @@ export async function runAutopilot(engine: BrainEngine, args: string[]) {
     process.exit(1);
   }
 
-  // Lock file to prevent concurrent instances (#14)
-  const lockPath = join(process.env.HOME || '', '.gbrain', 'autopilot.lock');
+  // Lock file to prevent concurrent instances (#14).
+  // v0.37.7.0 #1226: route through gbrainPath() so the lockfile lives
+  // under GBRAIN_HOME when set, not the hardcoded ~/.gbrain. Pre-fix,
+  // two brains sharing GBRAIN_HOME=different-paths still wrote to the
+  // same global lockfile and one would silently respawn the other
+  // forever.
+  const lockPath = gbrainHomePath('autopilot.lock');
   try {
-    mkdirSync(join(process.env.HOME || '', '.gbrain'), { recursive: true });
+    mkdirSync(gbrainHomePath(), { recursive: true });
     if (existsSync(lockPath)) {
       const stat = require('fs').statSync(lockPath);
       const ageMinutes = (Date.now() - stat.mtimeMs) / 60000;
