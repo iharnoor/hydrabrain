@@ -107,3 +107,8 @@ export {
   extractableTypesFromPack,
   isExtractableType,
 } from './extractable.ts';
+
+export {
+  enrichableTypesFromPack,
+  rubricNameForType,
+} from './enrichable.ts';
