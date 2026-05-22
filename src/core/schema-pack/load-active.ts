@@ -91,15 +91,19 @@ export function _resetPackLocatorForTests(): void {
  * throwing UnknownPackError with a paste-ready install hint.
  */
 function defaultPackLocator(name: string): string | null {
-  if (name === 'gbrain-base') {
+  // v0.39 T8 — bundled packs registry. gbrain-base + gbrain-recommended
+  // ship in src/core/schema-pack/base/. Add a new entry here to bundle
+  // additional canonical packs.
+  const BUNDLED: ReadonlyArray<string> = ['gbrain-base', 'gbrain-recommended'];
+  if (BUNDLED.includes(name)) {
     // Resolve bundled YAML relative to this source file. Works in both
     // direct-bun execution and bun --compile binaries.
     const here = dirname(fileURLToPath(import.meta.url));
-    const bundledPath = join(here, 'base', 'gbrain-base.yaml');
+    const bundledPath = join(here, 'base', `${name}.yaml`);
     if (existsSync(bundledPath)) return bundledPath;
     // Repo-root fallback for tests running from a worktree where the
     // module path doesn't resolve to the source tree.
-    const repoRootFallback = join(here, '..', '..', '..', 'src', 'core', 'schema-pack', 'base', 'gbrain-base.yaml');
+    const repoRootFallback = join(here, '..', '..', '..', 'src', 'core', 'schema-pack', 'base', `${name}.yaml`);
     if (existsSync(repoRootFallback)) return repoRootFallback;
     return null;
   }
