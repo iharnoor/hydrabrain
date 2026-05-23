@@ -38,7 +38,8 @@ function fakeCtx(remote = false): OperationContext {
     logger: { info: () => {}, warn: () => {}, error: () => {} } as never,
     dryRun: false,
     remote,
-  } as OperationContext;
+    sourceId: undefined,
+  } as unknown as OperationContext;
 }
 
 describe('loadActivePackBestEffort', () => {

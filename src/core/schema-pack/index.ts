@@ -147,3 +147,41 @@ export {
   acquirePackLock,
   withPackLock,
 } from './pack-lock.ts';
+
+export {
+  type PackFileFormat,
+  type MutateResult,
+  type MutateOpts,
+  type AddTypeOpts,
+  type UpdateTypeOpts,
+  type AddLinkTypeOpts,
+  SchemaPackMutationError,
+  BUNDLED_PACK_NAMES,
+  locateMutablePackFile,
+  withMutation,
+  addTypeToPack,
+  removeTypeFromPack,
+  updateTypeOnPack,
+  addAliasToType,
+  removeAliasFromType,
+  addPrefixToType,
+  removePrefixFromType,
+  addLinkTypeToPack,
+  removeLinkTypeFromPack,
+  setExtractableOnType,
+  setExpertRoutingOnType,
+} from './mutate.ts';
+
+export { invalidateQueryCache } from './query-cache-invalidator.ts';
+
+export {
+  type LintIssue,
+  type LintOpts,
+  type LintRule,
+  type LintReport,
+  type LintSeverity,
+  ALL_LINT_RULES,
+  FILE_PLANE_LINT_RULES,
+  runAllLintRules,
+  runFilePlaneLintRules,
+} from './lint-rules.ts';
