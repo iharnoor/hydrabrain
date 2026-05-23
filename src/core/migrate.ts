@@ -4149,50 +4149,30 @@ export const MIGRATIONS: Migration[] = [
     //       on Postgres so large brains don't lock; PGLite has no
     //       concurrent writers so plain CREATE INDEX is identical.
     //
-    // transaction: false so CONCURRENTLY can run on Postgres (matches
-    // the v14 pages_updated_at_index pattern).
+    // Engine-aware via handler (not multi-statement SQL): Postgres uses
+    // CREATE INDEX CONCURRENTLY to avoid the write-blocking SHARE lock on
+    // `pages`. CONCURRENTLY refuses to run inside a transaction AND
+    // postgres.js's multi-statement `.unsafe()` wraps in an implicit
+    // transaction, so we MUST split the work into separate runMigration
+    // calls (columns + function + trigger as one transactional batch;
+    // CONCURRENTLY index as a separate non-transactional statement).
+    // A failed CONCURRENTLY leaves an invalid index with the target name;
+    // pre-drop any invalid remnant via pg_index.indisvalid. PGLite has
+    // no concurrent writers, so a single multi-statement call with plain
+    // CREATE INDEX is safe. Mirrors the v14 pages_updated_at_index handler
+    // pattern verbatim.
     //
     // Forward-reference bootstrap: the column + trigger + index land in
     // PGLITE_SCHEMA_SQL CREATE TABLE body so fresh PGLite installs get
     // them without migration replay. REQUIRED_BOOTSTRAP_COVERAGE in
     // test/schema-bootstrap-coverage.test.ts pins the contract.
     idempotent: true,
-    transaction: false,
-    sql: `
-      ALTER TABLE pages ADD COLUMN IF NOT EXISTS generation BIGINT NOT NULL DEFAULT 1;
-      ALTER TABLE query_cache ADD COLUMN IF NOT EXISTS max_generation_at_store BIGINT NOT NULL DEFAULT 0;
-
-      CREATE OR REPLACE FUNCTION bump_page_generation_fn() RETURNS trigger AS $func$
-      BEGIN
-        IF (TG_OP = 'INSERT') THEN
-          NEW.generation := COALESCE((SELECT MAX(generation) FROM pages), 0) + 1;
-        ELSIF (OLD.compiled_truth IS DISTINCT FROM NEW.compiled_truth)
-           OR (OLD.timeline IS DISTINCT FROM NEW.timeline)
-           OR (OLD.frontmatter IS DISTINCT FROM NEW.frontmatter)
-           OR (OLD.deleted_at IS DISTINCT FROM NEW.deleted_at)
-           OR (OLD.contextual_retrieval_mode IS DISTINCT FROM NEW.contextual_retrieval_mode)
-           OR (OLD.title IS DISTINCT FROM NEW.title)
-           OR (OLD.type IS DISTINCT FROM NEW.type)
-           OR (OLD.page_kind IS DISTINCT FROM NEW.page_kind)
-           OR (OLD.corpus_generation IS DISTINCT FROM NEW.corpus_generation)
-           OR (OLD.content_hash IS DISTINCT FROM NEW.content_hash)
-        THEN
-          NEW.generation := OLD.generation + 1;
-        END IF;
-        RETURN NEW;
-      END;
-      $func$ LANGUAGE plpgsql;
-
-      DROP TRIGGER IF EXISTS bump_page_generation_trg ON pages;
-      CREATE TRIGGER bump_page_generation_trg
-        BEFORE INSERT OR UPDATE ON pages
-        FOR EACH ROW
-        EXECUTE FUNCTION bump_page_generation_fn();
-
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS pages_generation_idx ON pages (generation);
-    `,
-    sqlFor: {
-      pglite: `
+    sql: '',
+    handler: async (engine) => {
+      // Columns + trigger function + trigger. Same SQL on both engines —
+      // multi-statement is fine for these (transactional is fine for
+      // ALTER + CREATE FUNCTION + CREATE TRIGGER).
+      const columnsAndTrigger = `
         ALTER TABLE pages ADD COLUMN IF NOT EXISTS generation BIGINT NOT NULL DEFAULT 1;
         ALTER TABLE query_cache ADD COLUMN IF NOT EXISTS max_generation_at_store BIGINT NOT NULL DEFAULT 0;
 
@@ -4222,9 +4202,34 @@ export const MIGRATIONS: Migration[] = [
           BEFORE INSERT OR UPDATE ON pages
           FOR EACH ROW
           EXECUTE FUNCTION bump_page_generation_fn();
+      `;
+      await engine.runMigration(91, columnsAndTrigger);
 
-        CREATE INDEX IF NOT EXISTS pages_generation_idx ON pages (generation);
-      `,
+      if (engine.kind === 'postgres') {
+        // Pre-drop any invalid index from a prior CONCURRENTLY failure
+        // (matches v14 pattern).
+        await engine.runMigration(
+          91,
+          `DO $$ BEGIN
+             IF EXISTS (
+               SELECT 1 FROM pg_index i
+               JOIN pg_class c ON c.oid = i.indexrelid
+               WHERE c.relname = 'pages_generation_idx' AND NOT i.indisvalid
+             ) THEN
+               EXECUTE 'DROP INDEX CONCURRENTLY IF EXISTS pages_generation_idx';
+             END IF;
+           END $$;`
+        );
+        await engine.runMigration(
+          91,
+          `CREATE INDEX CONCURRENTLY IF NOT EXISTS pages_generation_idx ON pages (generation);`
+        );
+      } else {
+        await engine.runMigration(
+          91,
+          `CREATE INDEX IF NOT EXISTS pages_generation_idx ON pages (generation);`
+        );
+      }
     },
   },
 ];
