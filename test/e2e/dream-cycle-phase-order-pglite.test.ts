@@ -122,6 +122,7 @@ const EXPECTED_PHASES: CyclePhase[] = [
   'calibration_profile',        // v0.36.1.0
   'embed',
   'orphans',
+  'schema-suggest',              // v0.40.7.0 — Schema Cathedral v3
   'purge',                       // v0.26.5
 ];
 
