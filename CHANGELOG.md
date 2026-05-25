@@ -2,7 +2,7 @@
 
 All notable changes to GBrain will be documented in this file.
 
-## [0.41.3.0] - 2026-05-24
+## [0.41.5.0] - 2026-05-24
 
 **Six community bug-fix PRs land + the E2E suite stops lying about itself.** A fix-wave triage swept the 333-PR queue, closed 10 PRs as already-shipped (with credit, naming the commits + files), and bundled 6 real fixes from the community into one collector. Plus three E2E-suite reliability fixes that surfaced while getting the full Docker suite to 100% green.
 
