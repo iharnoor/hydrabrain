@@ -445,6 +445,10 @@ export async function runExtract(engine: BrainEngine, args: string[]) {
   // mention pass (skip default link extract). DB-source only per D7;
   // FS-source is rejected with a paste-ready fix-hint below.
   const byMention = args.includes('--by-mention');
+  // v0.42.0.0 (A10, T7): --ner is a NER-extraction mode dispatch. Same
+  // DB-source-only posture as --by-mention. Can combine with --by-mention
+  // in a single command for a shared-gazetteer walk (saves one pass).
+  const ner = args.includes('--ner');
 
   // Validate --since upfront. Without this, an invalid date like
   // `--since yesterday` produces NaN which silently passes the filter check
@@ -490,6 +494,24 @@ export async function runExtract(engine: BrainEngine, args: string[]) {
     );
     process.exit(2);
   }
+  // v0.42.0.0 (T7): same gates for --ner.
+  if (ner && source === 'fs') {
+    console.error(
+      `--ner requires --source db (currently --source fs). NER extraction needs the engine ` +
+      `to build the entity gazetteer + read schema-pack link_types. Re-run as:\n\n` +
+      `  gbrain extract ${subcommand} --ner --source db` +
+      (sourceIdFilter ? ` --source-id ${sourceIdFilter}` : '') +
+      (since ? ` --since ${since}` : '') +
+      (dryRun ? ' --dry-run' : '') + '\n',
+    );
+    process.exit(2);
+  }
+  if (ner && subcommand === 'timeline') {
+    console.error(
+      `--ner is a links-pass only; it does not apply to timeline extraction.`,
+    );
+    process.exit(2);
+  }
 
   // FS source needs a brain dir. When --dir wasn't passed, resolve from
   // sources(local_path) — same path `gbrain sync` uses — instead of
@@ -528,10 +550,33 @@ export async function runExtract(engine: BrainEngine, args: string[]) {
       // 'markdown'/'frontmatter') so they don't conflict, but mixing them
       // in a single CLI invocation is surprising — keep the surfaces
       // separate.
-      if (byMention) {
-        const r = await extractMentionsFromDb(engine, dryRun, jsonMode, typeFilter, since, { sourceIdFilter });
-        result.links_created = r.created;
-        result.pages_processed = r.pages;
+      if (byMention || ner) {
+        // v0.42.0.0 (T7): combined --by-mention + --ner walk shares one
+        // gazetteer; saves an entire pass on big brains. When only one
+        // flag is set, the other extractor skips silently.
+        const { buildGazetteer: buildGz } = await import('../core/by-mention.ts');
+        const sharedGazetteer = (byMention || ner) ? await buildGz(engine) : undefined;
+        if (byMention) {
+          const r = await extractMentionsFromDb(engine, dryRun, jsonMode, typeFilter, since, { sourceIdFilter });
+          result.links_created += r.created;
+          result.pages_processed += r.pages;
+        }
+        if (ner) {
+          const { extractNerLinks } = await import('../core/extract-ner.ts');
+          const r = await extractNerLinks(engine, {
+            dryRun,
+            sourceIdFilter,
+            typeFilter,
+            since,
+            gazetteer: sharedGazetteer,
+          });
+          if (r.pack_unavailable && !jsonMode) {
+            console.log('Note: no active schema pack with link_types[].inference.regex — NER pass produced 0 links.');
+          }
+          result.links_created += r.created;
+          // pages already counted by by-mention if both ran; else count here.
+          if (!byMention) result.pages_processed += r.pages;
+        }
       } else {
         if (subcommand === 'links' || subcommand === 'all') {
           const r = await extractLinksFromDB(engine, dryRun, jsonMode, typeFilter, since, { includeFrontmatter, sourceIdFilter });

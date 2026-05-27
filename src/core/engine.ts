@@ -126,6 +126,15 @@ export interface LinkBatchInput {
   from_source_id?: string;
   to_source_id?: string;
   origin_source_id?: string;
+  /**
+   * v0.42.0.0 (A10, codex finding #12): distinguishes "plain body mention"
+   * (NULL or 'plain') from "verb-pattern-derived typed NER" ('typed_ner')
+   * within link_source='mentions'. Backed by v98 schema column. NOT in
+   * the links UNIQUE constraint — same (from, to, type, source, origin)
+   * tuple with different link_kind collides DO NOTHING. Default NULL =
+   * legacy / unknown / pre-v98 semantics.
+   */
+  link_kind?: string;
 }
 
 /** Input row for addTimelineEntriesBatch. Optional fields default to '' (matches NOT NULL DDL). */

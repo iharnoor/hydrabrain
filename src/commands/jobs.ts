@@ -1551,6 +1551,18 @@ export async function registerBuiltinHandlers(worker: MinionWorker, engine: Brai
     return await makeEmbedBackfillHandler(engine)(job);
   });
 
+  // v0.42.0.0 (A10, T7): extract-ner handler for the gbrain onboard
+  // remediation pipeline. Wraps extractNerLinks; emits typed_ner kind
+  // alongside the by-mention 'plain' kind. NOT in PROTECTED_JOB_NAMES
+  // (regex-only, no LLM spend).
+  worker.register('extract-ner', async (job) => {
+    const { extractNerLinks } = await import('../core/extract-ner.ts');
+    const data = (job.data ?? {}) as { sourceId?: string };
+    return await extractNerLinks(engine, {
+      sourceIdFilter: data.sourceId,
+    });
+  });
+
   // v0.42.0.0 (A13): embed-catch-up handler for the gbrain onboard
   // remediation pipeline. Wraps runEmbedCore with stale + catchUp + the
   // priority/batchSize the recommendation supplies. NOT in
