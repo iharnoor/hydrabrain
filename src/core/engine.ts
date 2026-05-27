@@ -712,8 +712,67 @@ export interface BrainEngine {
    * delete doesn't hard-delete the same-slug pages in sources B/C/D. Without
    * it, the bare DELETE matches every row with that slug across all sources.
    * Cascades through content_chunks / page_links / chunk_relations via FKs.
+   *
+   * v0.41.19.0 (CDX-11): single-row primitive used by `purgeDeletedPages`,
+   * `gbrain sync` (one path per call), test setup teardown, and the v0.41.19.0
+   * sync-delete decompose path (when `deletePages` throws on a 500-row batch,
+   * the sync loop falls back to per-slug `deletePage` to log unrecoverable
+   * failures to `failedFiles`). `gbrain sync` calls this on EVERY run that
+   * sees a deleted file — it is NOT admin-only.
    */
   deletePage(slug: string, opts?: { sourceId?: string }): Promise<void>;
+  /**
+   * v0.41.19.0 — batch delete: single SQL round-trip via
+   * `DELETE FROM pages WHERE slug = ANY($1::text[]) AND source_id = $2
+   *  RETURNING slug`. Cascades through content_chunks / page_links (×3) /
+   * tags / raw_data / timeline_entries / page_versions via FKs declared in
+   * `src/schema.sql`. `files.page_id` and `links.origin_page_id` go SET
+   * NULL per their FK definitions.
+   *
+   * SINGLE-BATCH PRIMITIVE: caller is responsible for chunking the input to
+   * `<= DELETE_BATCH_SIZE` entries per call (see
+   * `src/core/engine-constants.ts`). Matches the `addLinksBatch` convention
+   * — engine assumes well-behaved input, caller owns the slicing.
+   *
+   * Returns the slugs of rows ACTUALLY DELETED (order undefined). Callers
+   * use this to filter their own `pagesAffected` tracking so downstream
+   * phases don't waste lookups on phantom slugs (paths that were in the
+   * deletion list but had no DB row).
+   *
+   * ATOMICITY: one statement, one transaction. The whole batch commits or
+   * the whole batch rolls back. Coarser than the per-row `deletePage`
+   * cadence — a mid-loop abort or transient connection failure can roll
+   * back up to `DELETE_BATCH_SIZE - 1` successful deletes from the
+   * in-flight batch. `gbrain sync` is idempotent (next run picks them up
+   * via git diff); other callers should account for the contract.
+   *
+   * sourceId is REQUIRED (no `'default'` fallback). This is asymmetric with
+   * `deletePage` (which keeps the optional/'default' fallback for back-
+   * compat). Filed as v0.42+ TODO to tighten `deletePage` to match once a
+   * full caller audit confirms every site threads `sourceId`.
+   */
+  deletePages(slugs: string[], opts: { sourceId: string }): Promise<string[]>;
+  /**
+   * v0.41.19.0 — batch path → slug resolution. Single SQL round-trip via
+   * `SELECT slug, source_path FROM pages WHERE source_path = ANY($1::text[])
+   *  AND source_id = $2`. Returns `Map<path, slug>`; paths NOT in the map
+   * have no `source_path` row in the DB and the caller is expected to fall
+   * back to `resolveSlugForPath(path)` for the path-derived slug.
+   *
+   * Mirrors the contract of the single-call `resolveSlugByPathOrSourcePath`
+   * helper in `src/commands/sync.ts`, batched. As of v0.41.19.0, that
+   * single-call helper is implemented on top of this method (one Map
+   * allocation per single-path call; negligible cost; one owner of the SQL
+   * + fallback semantics).
+   *
+   * SINGLE-BATCH PRIMITIVE: caller chunks to `<= DELETE_BATCH_SIZE`.
+   *
+   * Empty `paths` short-circuits to an empty Map without touching the DB.
+   */
+  resolveSlugsByPaths(
+    paths: string[],
+    opts: { sourceId: string },
+  ): Promise<Map<string, string>>;
   /**
    * v0.26.5 — set `deleted_at = now()` on a page. Returns the slug if a row
    * was soft-deleted, null if no row matched (already soft-deleted OR not found).

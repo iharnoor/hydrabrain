@@ -209,6 +209,143 @@ Every originally-deferred follow-up is included:
 - **Issue #1481 closed** — supersedes the original proposal with the
   decisions captured in plan
   `~/.claude/plans/system-instruction-you-are-working-drifting-falcon.md`.
+
+## [0.41.25.0] - 2026-05-27
+
+**Big-delete syncs no longer choke your brain — and your search results
+were silently going stale in a different way that's now fixed.**
+
+If you've ever made a commit that deleted a lot of files (a folder
+reorganization, an `atom` backfill rewrite, a big import cleanup), you
+might have noticed that `gbrain sync` would just... sit there. For
+hours. While it sat, the sync cron timed out every run, every other
+source on your brain stopped syncing, and `gbrain doctor` health score
+slid toward zero. That's fixed. A commit deleting 73,000 files used to
+take about five hours to absorb; it now takes about two minutes.
+
+While digging into the delete path we found a second, unrelated bug.
+Your query cache was silently serving stale `gbrain search` results
+whenever you updated an *older* page (one that wasn't the newest in
+your brain) and whenever you deleted *anything*. That's also fixed.
+You'll see one tiny cache-miss spike on first `gbrain search` after
+upgrade as the cache gets re-stamped under the new contract, then it's
+faster than before because the bookmark is a one-row lookup instead of
+a brain-wide MAX scan.
+
+**To take advantage of v0.41.22.0**
+
+`gbrain upgrade` should do this automatically. If it didn't, or if
+`gbrain doctor` warns about a partial migration:
+
+1. Run the orchestrator manually:
+   ```bash
+   gbrain apply-migrations --yes
+   ```
+2. Verify the new clock table exists:
+   ```bash
+   gbrain doctor
+   # Look for any "page_generation_clock" warning in the output;
+   # there shouldn't be one.
+   ```
+3. Manual smoke test for the perf win (optional, only if you want to
+   see it):
+   ```bash
+   # In a scratch brain, stage a commit that deletes a lot of files,
+   # then run `gbrain sync --source <id>` and watch the wallclock.
+   # Before: minutes. After: seconds.
+   ```
+4. If any step fails or numbers look wrong, file an issue at
+   https://github.com/garrytan/gbrain/issues with `gbrain doctor`
+   output and the contents of `~/.gbrain/upgrade-errors.jsonl` if it
+   exists.
+
+### Itemized changes
+
+- **Sync delete loop batched.** `gbrain sync` (and the autopilot cycle's
+  sync phase) now batches deletes through a single SQL round-trip per
+  500 files instead of one round-trip per file. The 73K-delete commit
+  drops from ~146,000 DB round-trips (~5 hours) to ~292 (~2 minutes).
+  Per-batch try-catch + per-slug decompose mirrors the existing
+  failedFiles pattern in the import loop, so a transient connection
+  blip on batch 73 doesn't lose 500 deletes — it self-heals to
+  one-at-a-time for that batch only. Engine-uniform: PGLite and real
+  Postgres both get the win.
+- **Sync rename loop pre-resolved.** Same batched slug-resolve treatment
+  for renames; the per-file `importFile` (which dominates rename cost
+  anyway) stays per-file.
+- **`engine.deletePages(slugs, {sourceId})`** — new required method on
+  `BrainEngine`. Returns the slugs actually deleted (so callers stop
+  wasting downstream work on phantom paths). `sourceId` is required at
+  the type level — closes the multi-source-bug-class structurally on
+  the new surface.
+- **`engine.resolveSlugsByPaths(paths, {sourceId})`** — new required
+  method on `BrainEngine`. Batch path → slug lookup. The single-call
+  `resolveSlugByPathOrSourcePath` helper now delegates to this when
+  `sourceId` is set; one owner of the SQL and fallback semantics.
+- **`src/core/engine-constants.ts`** — new module owning
+  `DELETE_BATCH_SIZE = 500`. Both engines import from it; no
+  engine-from-engine coupling.
+- **Global page-generation clock.** New `page_generation_clock` table
+  with a statement-level `AFTER INSERT OR UPDATE OR DELETE` trigger.
+  `query-cache-gate.ts` Layer 1 now reads the clock directly. Pre-fix
+  the bookmark read `MAX(generation) FROM pages` and was structurally
+  broken:
+  - Updating a non-max page kept the old `OLD.generation + 1` trigger
+    body, which advanced the per-page counter but didn't move
+    `MAX(generation)`. Cache silently served stale.
+  - Hard-deleting any page didn't fire the trigger at all. Cache
+    silently served stale.
+  - Empty-result cache rows had `{}` per-page snapshots that were
+    "vacuously valid" via Layer 2 — they survived any subsequent
+    matching INSERT. Cache silently served stale.
+
+  The new clock bumps exactly once per write statement regardless of
+  row cardinality (a 500-row batch DELETE is one counter bump, not
+  500). Per-row `pages.generation` stays for Layer 2's per-page
+  snapshot semantics; only Layer 1's read source changed. Empty-result
+  cache rows now trust Layer 1 exclusively.
+- **Migration v106** (`page_generation_clock_and_statement_trigger`)
+  creates the clock table, seeds it with `COALESCE(MAX(pages.generation), 0)`
+  so existing cache rows aren't all instantly invalidated, and wires
+  the new trigger.
+- **CHANGELOG, version, and tests.** Tests in
+  `test/sync-delete-batch.test.ts`, `test/sync-delete-batch.slow.test.ts`
+  (PGLite 10K-page perf gate), `test/sync-rename-batch.test.ts`,
+  `test/page-generation-counter.test.ts`, plus an engine-parity
+  extension in `test/e2e/engine-parity.test.ts`. The existing
+  `test/query-cache-gate.test.ts` and `test/e2e/cache-gate-pglite.test.ts`
+  flip their pre-v0.41.22.0 "vacuously valid legacy row" assertions to
+  match the new contract (legacy rows now invalidate once on first
+  post-upgrade lookup, then the cache fills back correctly).
+- **Credit:** the SQL batching idea (`DELETE FROM pages WHERE slug =
+  ANY($1::text[])` chunked at 500) and the headline 73K-delete number
+  come from PR #1538 by `@garrytan-agents`. That PR shipped Postgres-
+  only with no tests; this release supersedes it with PGLite parity,
+  proper engine-API factoring, test coverage, and the cache-bookmark
+  correctness fix that landed alongside.
+
+### For contributors
+
+- Engine implementers (gbrain has no external implementers today) must
+  add `deletePages` and `resolveSlugsByPaths` to any custom
+  `BrainEngine` — both are required methods on the interface.
+- New CI surface: nothing additional; the existing `bun run verify`
+  gate covers the new test files automatically.
+- v0.42+ TODO: tighten `deletePage` (single-row) to require `sourceId`
+  symmetric with the new `deletePages`. Out of scope for this PR
+  because it requires a full caller audit.
+- v0.42+ TODO: clean up the existing `bump_page_generation_fn`
+  row-level trigger's UPDATE branch (`NEW.generation = OLD.generation
+  + 1` is structurally wrong for MAX-style consumers, harmless for
+  Layer 2 per-page snapshot but worth cleaning up).
+- v0.42+ TODO: `op_checkpoints` integration on the sync-delete loop
+  for resume-after-kill semantics. Per-delete cost dropped from ~250ms
+  to ~0.4ms so a 73K-delete completes in seconds; resume matters much
+  less now.
+- v0.42+ TODO: heavy regression test for two concurrent batch DELETEs
+  against disjoint sources (the statement-level clock-row UPDATE
+  contention shape). Filed under `tests/heavy/` per CLAUDE.md.
+
 ## [0.41.24.0] - 2026-05-27
 
 **Your reformatted meeting transcripts now actually parse.**

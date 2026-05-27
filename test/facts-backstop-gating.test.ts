@@ -29,6 +29,14 @@ async function putAndReadBackstop(slug: string, content: string): Promise<{ queu
     remote: false,
     sourceId: 'default',
   });
+  // Diagnostic: print the actual error content when the call fails, so CI
+  // failures (which reproduce only on Linux CI, not local Mac) surface the
+  // real cause instead of opaque `Received: true`. Cheap when isError is
+  // false (the common case); pays its way the moment something throws.
+  if (r.isError) {
+    // eslint-disable-next-line no-console
+    console.error(`[facts-backstop-gating diag] put_page returned isError=true for slug=${slug}, content[0].text=${r.content[0]?.text ?? '<missing>'}`);
+  }
   expect(r.isError).toBeFalsy();
   const payload = JSON.parse(r.content[0].text);
   return payload.facts_backstop as { queued: boolean } | { skipped: string } | undefined;
