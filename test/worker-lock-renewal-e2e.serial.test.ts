@@ -79,7 +79,8 @@ describe('H: gold-standard regression — worker survives renewLock throws', () 
     let renewLockCallCount = 0;
     (engine as { executeRaw: PGLiteEngine['executeRaw'] }).executeRaw = async (
       sql: string,
-      ...args: unknown[]
+      params?: unknown[],
+      opts?: { signal?: AbortSignal },
     ) => {
       const isRenewLock = sql.includes('SET lock_until = now()') && sql.includes('lock_token');
       if (isRenewLock) {
@@ -89,7 +90,7 @@ describe('H: gold-standard regression — worker survives renewLock throws', () 
           throw new Error('simulated PgBouncer connection drop');
         }
       }
-      return originalExecuteRaw(sql, ...(args as Parameters<typeof originalExecuteRaw>));
+      return originalExecuteRaw(sql, params, opts);
     };
 
     // Short lockDuration → 50ms timer interval, abort deadline at
@@ -142,7 +143,12 @@ describe('H: gold-standard regression — worker survives renewLock throws', () 
       // signal through correctly.
       expect(handlerEntered).toBe(true);
       expect(handlerAbortObserved).toBe(true);
-      expect(abortReason).toBe('lock-renewal-failed');
+      // TS narrows `abortReason` to literal `null` because the closure
+      // assignment in worker.register isn't observable to the inferrer.
+      // The preceding `handlerAbortObserved` assertion guarantees we
+      // entered the if-aborted branch where abortReason was assigned;
+      // cast via unknown to satisfy the overload.
+      expect(abortReason as unknown as string).toBe('lock-renewal-failed');
 
       // renewLock was actually called multiple times (sanity check
       // that the fault injection fired).
