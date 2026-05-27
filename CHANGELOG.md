@@ -2,6 +2,149 @@
 
 All notable changes to GBrain will be documented in this file.
 
+## [0.41.21.0] - 2026-05-27
+
+**Your reformatted meeting transcripts now actually parse.**
+
+If you reformat Circleback meetings into a per-line shape like
+`**Garry Tan** (12:34): hello`, gbrain used to look at them and say
+`no_match` — even when 78% of the page was valid chat. Your 36 reformatted
+meetings sat there inert and the fact extractor never saw a single
+message. v0.41.21.0 makes them flow through.
+
+Two problems were stacked. First, the parser only looked at the first
+10 lines of a page to figure out which chat format it was. Meeting
+pages start with `## Summary`, a blockquote, a `## Transcript` heading
+— ~10 lines of prose before the actual chat. None of those lines
+matched any chat regex, so the parser gave up. Second, even if the
+parser had kept looking, none of the 12 built-in patterns recognized
+the time-only shape Circleback exports use: `**Speaker** (HH:MM):` or
+`**Speaker** (HH:MM:SS):`. Both shapes were invisible.
+
+The fix tightens the detector AND teaches it the missing shape. The
+detector now falls back to scanning the full body when the head pass
+returns a weak score, AND it refuses to accept a final score below 5%
+(so an essay with one stray chat-shape line stays `no_match` instead
+of false-positive parsing as a 1-message conversation). The new
+`bold-paren-time` built-in covers the two Circleback variants. After
+the fix, 113 of 367 Circleback meeting pages on the canonical brain
+parse correctly (was 0), and **20,167 messages** flow through to the
+fact extractor for the first time. The other 254 are notes-only
+meetings that link to a separate transcript file — those legitimately
+have nothing to parse.
+
+**How to use it:** `gbrain upgrade`. Then either enable the cycle phase
+that runs in the background (`gbrain config set
+cycle.conversation_facts_backfill.enabled true`) or fire it manually
+(`gbrain extract-conversation-facts <source>`). The parser fix
+unblocks the pipeline; the trigger is yours.
+
+**The detector numbers that matter** (parse.ts):
+
+| Setting | Value | What it does |
+|---|---|---|
+| `SCORING_HEAD_LINES` | 10 | Lines scanned in the fast path (unchanged) |
+| `SCORING_HEAD_TRIGGER_THRESHOLD` | 0.3 | Below this, fall back to full-body scoring |
+| `SCORING_MIN_ACCEPTANCE` | 0.05 | Final score floor — below this, return `no_match` |
+
+The 0.3 trigger threshold (instead of "fall back only on score === 0")
+closes a silent bug class: a blockquote that accidentally matches an
+unrelated pattern at 0.1 used to suppress the fallback entirely. Now
+it doesn't.
+
+**Things to watch:**
+
+- The new pattern treats Circleback's `(00:00)` / `(00:00:00)` as
+  wall-clock time on the page's frontmatter date. Real Circleback
+  timestamps are elapsed-time-from-meeting-start, so every message in
+  a meeting lands on the same day starting at 00:00 + offset. The
+  fact extractor cares about speaker + content, not precise
+  timestamps, so this is honest enough. Proper per-line wall-clock
+  reconstruction would need an `elapsed_time: true` flag on
+  PatternEntry — filed as v0.42+ scope.
+- `imessage-slack` still wins on full-datetime overlaps. The new
+  pattern's regex requires `\)` immediately after the time group, so
+  `(2024-03-15 9:00 AM)` shapes correctly fall through to the more
+  specific pattern.
+
+### Itemized changes
+
+#### Added
+- `bold-paren-time` built-in pattern in
+  `src/core/conversation-parser/builtins.ts` recognizes
+  `**Speaker** (HH:MM): text` and `**Speaker** (HH:MM:SS): text`.
+  Verified against 367 Circleback meeting files at `~/git/brain/meetings/`:
+  113 now parse (was 0), 20,167 messages flowing through.
+- `scorePatternFull(body, entry)` exported from
+  `src/core/conversation-parser/parse.ts` for callers that need
+  full-body scoring of a single pattern.
+
+#### Changed
+- `parseConversation()` falls back to full-body re-scoring when the
+  head pass's top score is below `SCORING_HEAD_TRIGGER_THRESHOLD`
+  (0.3) instead of only when it is exactly 0. The pre-fix shape left
+  a real bug class open where a stray head match suppressed the
+  fallback.
+- `parseConversation()` returns `no_match` when the final winner's
+  score is below `SCORING_MIN_ACCEPTANCE` (0.05) to prevent
+  essay-false-positive parsing.
+- `scorePattern()` is now a thin wrapper over a private
+  `scoreFromLines` core that holds the quick_reject + regex loop in
+  one place. `scorePattern` behavior + contract + signature unchanged.
+
+#### Tests
+- 11 new unit cases in `test/conversation-parser/parse.test.ts`:
+  the #1533 IRON-RULE regression pin (meeting page →
+  `regex_match`), honest unmatched-count after fallback, pure-prose
+  stays `no_match`, 300-line preamble + 50 chat lines hits fallback,
+  `scorePatternFull` direct boundaries, stray-head-match
+  miscategorization guard, essay false-positive acceptance-floor
+  guard, `bold-paren-time` matches HH:MM, `bold-paren-time` matches
+  HH:MM:SS, `imessage-slack` still wins on full-datetime overlap,
+  meeting page with preamble + `bold-paren-time` transcript hits
+  fallback.
+- Existing "caps at SCORING_HEAD_LINES (10)" test reshaped to pin
+  behavior (10 match + 1 non-match scores 1.0; 9 non-match + 1 match
+  + 100 after scores 0.1) instead of importing the constant.
+
+#### Closed
+- Closes #1533 — both the bug class (trigger threshold + acceptance
+  floor) and the user-facing case (113 Circleback meetings × 20,167
+  messages).
+
+## To take advantage of v0.41.21.0
+
+`gbrain upgrade` should do this automatically. Then to actually flow
+your reformatted Circleback meetings through the fact extractor:
+
+1. **One-shot manual extraction (immediate):**
+   ```bash
+   gbrain extract-conversation-facts <source>
+   ```
+   Replace `<source>` with the source id holding your meeting pages.
+   Use `gbrain sources list` to find it.
+
+2. **OR enable the cycle phase (continuous, opt-in):**
+   ```bash
+   gbrain config set cycle.conversation_facts_backfill.enabled true
+   ```
+   The dream cycle picks them up on the next tick.
+
+3. **Verify the parser sees them:**
+   ```bash
+   gbrain conversation-parser scan <slug> --json
+   ```
+   Expected output for a Circleback meeting:
+   `"phase": "regex_match"`, `"matched_pattern_id":
+   "bold-paren-time"`, `"message_count"` in the dozens to hundreds.
+
+4. **If parser still reports `no_match`** on a page you expected to
+   parse, your meeting may use a transcript shape outside the 13
+   built-in patterns. Run `gbrain conversation-parser list-builtins`
+   to see what shapes are recognized, file an issue with a sample
+   page, or wait for v0.42+'s user-declared `simple_pattern`
+   support.
+
 ## [0.41.19.0] - 2026-05-26
 
 **Your dream cycle stops silently losing wiki links.**
