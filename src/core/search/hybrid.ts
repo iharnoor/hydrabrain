@@ -19,6 +19,7 @@ import { dedupResults } from './dedup.ts';
 import { applyReranker } from './rerank.ts';
 import { autoDetectDetail, classifyQuery, isAmbiguousModalityQuery } from './query-intent.ts';
 import { isTitlePhraseMatch } from './title-match.ts';
+import { normalizeAlias } from './alias-normalize.ts';
 import { expandAnchors, hydrateChunks } from './two-pass.ts';
 import { enforceTokenBudget } from './token-budget.ts';
 import { recordSearchTelemetry } from './telemetry.ts';
@@ -499,6 +500,88 @@ async function applyAliasResolvedBoost(
       r.alias_resolved_boost = ALIAS_RESOLVED_BOOST;
     }
   }
+}
+
+// T3 — free-text alias hop tuning.
+const ALIAS_HOP_PRESENT_BOOST = 1.10; // bounded boost when canonical already in results
+const MAX_ALIAS_QUERY_TOKENS = 6;     // skip long queries (clearly not a chosen name)
+const MAX_ALIAS_INJECT = 3;           // cap injected pages per query (collision safety)
+
+/**
+ * T3 — free-text alias hop (retrieval-maxpool incident, the named-thing fix).
+ *
+ * When the normalized query EXACTLY matches a page's declared alias
+ * ("Hall of Light" / "明堂" -> the Mingtang page), make sure that page is in
+ * the result set: boost it if already present, inject it at top-of-organic +
+ * epsilon if absent. This is the only layer that bridges true synonyms with
+ * zero surface overlap — neither max-pool nor title-boost can.
+ *
+ * Precision guards (Codex#7/#10):
+ *   - FULL normalized-query exact match only (not substring / not n-grams) —
+ *     "light" won't fire unless the whole query normalizes to a stored alias.
+ *   - skip queries longer than MAX_ALIAS_QUERY_TOKENS (clearly prose, not a name).
+ *   - bounded: present-boost is 1.10x; inject score is top-of-organic + ε,
+ *     never an absolute 1.0 (D3 — aliases are not a ranking sledgehammer).
+ *   - collisions (two pages claim one alias): deterministic alpha order, capped.
+ *
+ * Fail-open: pre-v108 brains (no page_aliases table) and any lookup error
+ * degrade to the input unchanged (D9). Returns a NEW array; caller re-slices.
+ */
+export async function applyAliasHop(
+  engine: import('../engine.ts').BrainEngine,
+  results: SearchResult[],
+  query: string,
+  opts: { sourceId?: string; sourceIds?: string[] },
+): Promise<SearchResult[]> {
+  if (!query) return results;
+  const qNorm = normalizeAlias(query);
+  if (!qNorm || qNorm.split(' ').length > MAX_ALIAS_QUERY_TOKENS) return results;
+
+  let aliasMap: Map<string, string[]>;
+  try {
+    aliasMap = await engine.resolveAliases([qNorm], { sourceId: opts.sourceId, sourceIds: opts.sourceIds });
+  } catch {
+    return results; // pre-v108 table-missing OR transient error -> fail-open
+  }
+  const slugs = aliasMap.get(qNorm);
+  if (!slugs || slugs.length === 0) return results;
+
+  const ordered = [...slugs].sort().slice(0, MAX_ALIAS_INJECT); // deterministic + capped
+  const out = [...results];
+  const topScore = out.reduce((m, r) => (Number.isFinite(r.score) && r.score > m ? r.score : m), 0);
+  let injectScore = topScore > 0 ? topScore : 1.0;
+
+  for (const slug of ordered) {
+    const idx = out.findIndex(r => r.slug === slug);
+    if (idx >= 0) {
+      if (Number.isFinite(out[idx].score)) out[idx].score *= ALIAS_HOP_PRESENT_BOOST;
+      out[idx].alias_hit = true;
+      continue;
+    }
+    // Absent canonical: fetch + inject at top-of-organic + epsilon.
+    let page;
+    try {
+      page = await engine.getPage(slug, opts.sourceId ? { sourceId: opts.sourceId } : undefined);
+    } catch {
+      continue;
+    }
+    if (!page) continue;
+    injectScore += 1e-6;
+    out.push({
+      slug: page.slug,
+      title: page.title,
+      type: page.type,
+      source_id: page.source_id,
+      chunk_text: (page.compiled_truth ?? '').slice(0, 200),
+      chunk_index: 0,
+      chunk_id: 0,
+      score: injectScore,
+      base_score: injectScore,
+      alias_hit: true,
+    } as SearchResult);
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out;
 }
 
 export interface HybridSearchOpts extends SearchOpts {
@@ -1093,7 +1176,15 @@ export async function hybridSearch(
     ? await applyReranker(query, deduped, rerankerOpts as any)
     : deduped;
 
-  const sliced = reranked.slice(offset, offset + limit);
+  // T3 — free-text alias hop. Runs AFTER rerank so a query that is a page's
+  // declared chosen name reliably surfaces that page regardless of how the
+  // reranker scored body chunks. Fail-open on pre-v108 brains.
+  const aliasHopped = await applyAliasHop(engine, reranked, query, {
+    sourceId: opts?.sourceId,
+    sourceIds: opts?.sourceIds,
+  });
+
+  const sliced = aliasHopped.slice(offset, offset + limit);
   // v0.32.3 search-lite: budget enforcement at the main return path.
   // hybridSearchCached used to be the only place this fired; now bare
   // hybridSearch enforces it too so eval-replay + eval-longmemeval see

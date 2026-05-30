@@ -662,6 +662,15 @@ export interface SearchResult {
    * keys off base_score / evidence, not the boosted score).
    */
   title_match_boost?: number;
+  /**
+   * T3 (retrieval-maxpool incident) — set when this result was surfaced or
+   * boosted by the free-text alias hop (the query exactly matched a page's
+   * declared alias in page_aliases). An injected canonical that wasn't in the
+   * organic candidate set carries alias_hit=true with score = top-of-organic
+   * + epsilon. Drives the evidence=alias_hit signal the agent's don't-duplicate
+   * decision keys off (T4).
+   */
+  alias_hit?: boolean;
 }
 
 /**
