@@ -2,6 +2,122 @@
 
 All notable changes to GBrain will be documented in this file.
 
+## [0.42.3.0] - 2026-05-30
+
+**Search now returns the *confident handful* instead of a fixed wall of results
+— automatically. When you ask something with one clear answer, you get one
+result; when there are genuinely a few, you get those few; you stop getting 20
+loosely-related pages just because 20 was the limit. No flag to turn on — it is
+the default.**
+
+Here is the problem it fixes. Ask your brain "what's the door code for the
+cabin" and the old default would hand back 20 results: the right one on top, then
+19 things that merely mention cabins or codes. You (or the agent reading the
+results) then wade through the pile. That is fine for "show me everything about
+X," but it is noise when the question has a small answer. The new behavior,
+called **autocut**, looks at how the relevance scores drop off and cuts the list
+where the scores fall off a cliff. One obvious answer comes back as one result.
+A real cluster of three comes back as three. A broad question with no clear
+winner still returns the full set, so you never lose recall when you actually
+want breadth.
+
+The important detail, and why this is trustworthy where a naive version would
+not be: autocut cuts on the **reranker's** score, not the raw search score.
+gbrain already measured that the raw search score gap looks the same whether the
+top hit is right or wrong — it is not a reliable "is this the answer" signal. The
+cross-encoder reranker score *is*. So autocut only runs in the search modes where
+the reranker runs (the default `balanced` mode and `tokenmax`), and it is a clean
+no-op everywhere else. It can never return zero results when matches exist, and
+it never runs on a page the reranker did not actually score.
+
+### How to use it
+
+Nothing. It is on by default in the `balanced` and `tokenmax` search modes. The
+`conservative` mode (no reranker) is unaffected.
+
+Your agent gets one new lever on the `query` tool — `autocut: false` — to force
+the full top-K back when it deliberately wants breadth (broad exploration, "list
+everything about X," or when it suspects the top hit is wrong and wants to see
+the alternatives). It almost never needs to set it; the default is the smart path.
+
+Per-brain knobs if you want to tune or disable:
+
+```bash
+gbrain config set search.autocut false        # turn autocut off for this brain
+gbrain config set search.autocut_jump 0.30     # require a steeper cliff to cut (default 0.20)
+gbrain search modes                            # see autocut / autocut_jump per-mode
+gbrain query "what is X" --explain             # shows each result's rerank score + the cut
+```
+
+### What a concrete example looks like
+
+Query: "cabin door code" against a brain on the default mode. The reranker scores
+the candidates, autocut sees the cliff, and you get:
+
+| Result | Rerank score | Kept? |
+|---|---|---|
+| `notes/cabin-access` | 0.95 | yes (above the cliff) |
+| `notes/cabin-packing-list` | 0.22 | no (below the cliff) |
+| `notes/lake-house-wifi` | 0.18 | no |
+| ...17 more | <0.2 | no |
+
+One result instead of twenty. Ask "everything about the cabin" instead and the
+scores come back flat (no cliff) — autocut declines and you get the full set.
+
+### Things to know about
+
+- **One-time cache cold-start on upgrade.** The query cache key changed
+  (it now distinguishes autocut-on from autocut-off results), so every cached
+  search row is invalidated once on upgrade and the cache refills over the next
+  hour (`search.cache.ttl_seconds`, default 3600s). This is a global one-time
+  miss spike, including in `conservative` mode where autocut is a no-op — the
+  cache key is shared. Same pattern as prior search upgrades.
+- **`conservative` mode gets no precision change** — it has no reranker, so there
+  is no trustworthy cliff to cut on. Autocut is a documented no-op there. Use
+  `balanced` or `tokenmax` to get it.
+- **Default search mode reranks a few more candidates per query.** To make
+  autocut correct, the reranker now scores the full returned set (50 in
+  `tokenmax`, 25 in `balanced`, up from 30) so there is never a returned-but-
+  unscored result that autocut might wrongly drop. The extra rerank cost is
+  rounding error next to the downstream model.
+- **This is one wave of a larger retrieval redesign** ([#1663](https://github.com/garrytan/gbrain/issues/1663)).
+  Still to come: query-shape routing, a structural exact-lookup tier, and
+  automatic escalation to `think` on low-confidence queries. The issue stays open.
+
+### Itemized changes
+
+- **New `src/core/search/autocut.ts`** — pure score-discontinuity algorithm.
+  Normalizes the reranker scores, finds the largest gap, and cuts there when the
+  gap clears a sensitivity threshold (`autocut_jump`, default 0.20). Robust to
+  unsorted provider output (cuts on a sorted copy, keeps items in input order),
+  guards against unusable score scales (top ≤ 0, non-finite), and never returns
+  empty. No-ops when fewer than 2 results carry a reranker score (covers the
+  reranker's fail-open path).
+- **`query` tool gains an `autocut` boolean** — the ceiling override. Description
+  teaches the agent it is the smart default and `false` is the breadth escape
+  hatch, and distinguishes it from `adaptive_return` (cuts by score cliff vs.
+  caps by question intent). The keyword-only `search` tool is unchanged (no
+  reranker there).
+- **`gbrain search modes`** lists `autocut` + `autocut_jump` with per-knob source
+  attribution; **`--explain`** shows each result's rerank score and an autocut
+  summary line; the metric glossary documents `autocut.signal` + `autocut.gap_ratio`.
+- **Reranker now scores the full returned set** in `balanced` (25) and `tokenmax`
+  (50) so autocut never drops an unscored tail.
+- **Cache-meta fix (found during review):** the cached search path was silently
+  dropping the `adaptive_return` decision (and would have dropped `autocut`,
+  `mode`, `embedding_column`) from the metadata it reports. All are now carried
+  through, so `--explain` and eval-capture report the real decision on cache
+  writeback and hits.
+- `rerank_score` is now a first-class field on search results.
+- Cache-key version bumped (7 → 8) to fold in the autocut knobs (stacked on master's title_boost v=7).
+- **In-repo eval gate** (`bun run eval:autocut`, also runs in CI) measures the
+  precision-lift-without-recall-regression claim default-ON rests on, over
+  labeled qrels fixtures with realistic cross-encoder score distributions — no
+  API key, no external repo. Current result: mean precision 0.33 → 0.94, mean
+  recall 1.00 → 0.95, and **zero recall regression on enumeration queries**
+  (autocut declines on flat curves by construction). Floors are env-overridable.
+  A live-corpus PrecisionMemBench run remains an optional empirical confirmation,
+  not a blocker.
 ## [0.42.2.0] - 2026-05-30
 
 **One command now wires Claude Code, Codex, or Perplexity Computer to a remote
