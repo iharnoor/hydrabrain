@@ -2,6 +2,104 @@
 
 All notable changes to GBrain will be documented in this file.
 
+## [0.42.6.0] - 2026-06-01
+
+**Most of your people and company pages are one-line stubs. `gbrain enrich --thin`
+now develops them at scale using only what your brain already knows, no web
+lookups, and every claim it writes is cited back to the note it came from.**
+
+Your brain is full of scattered knowledge about a person that never made it onto
+their page: a meeting where they presented, a deal they led, another person's
+page that mentions them, a fact you captured months ago. The stub page still
+says "Stub page." `gbrain enrich --thin` finds the most-referenced stubs, pulls
+together everything the brain knows about each one (search + backlinks + facts +
+raw notes), and makes one grounded model call per page to consolidate it into a
+real, cited dossier. When the brain doesn't know enough, it skips the page
+instead of making things up.
+
+This is deliberately brain-internal. gbrain's own model tooling can only see your
+brain (search, get_page, facts, backlinks), not the web or LinkedIn, so this
+develops what you already have rather than researching new facts. Web research
+stays the job of the agent-driven `enrich` skill.
+
+How to run it:
+
+```bash
+# See what it would do + a cost estimate, no spend:
+gbrain enrich --thin --dry-run --json
+
+# Develop the top 3 most-referenced stubs, cheap model, $0.50 cap:
+gbrain enrich --thin --limit 3 --max-usd 0.50 --model anthropic:claude-haiku-4-5
+```
+
+It's resumable (`--resume`), budget-capped (`--max-usd`, best-effort under
+`--workers > 1`; pin `--workers 1` for a hard ceiling), and source-scoped
+(`--source`). Enriched pages get `enriched_at` + `enriched_by` frontmatter so a
+recency guard skips them on the next run, and the budget cap is the real money
+gate.
+
+There's also an opt-in autopilot phase (`cycle.enrich_thin.enabled`, default OFF)
+that trickles a few thin pages per source each cycle so the brain compounds over
+time, with both per-source and brain-wide cost + walltime caps.
+
+What you'd see: a stub people page that read "Stub page." comes back as a
+multi-section dossier with `[Source: meetings/2026-summit]` style citations on
+each claim, and re-running confirms it's no longer selected.
+
+Things to know: untrusted note content can't break out of the model prompt (the
+retrieved context is escaped, including the data-envelope delimiters), and
+`enrich` is refused on thin-client / HTTP MCP installs because it spends model
+budget and writes pages — run it on the host.
+
+## To take advantage of v0.42.6.0
+
+`gbrain upgrade` brings the new command in. No migration is required for the core
+feature (it reads existing pages + links + facts). To use it:
+
+1. **Preview first:**
+   ```bash
+   gbrain enrich --thin --dry-run --json
+   ```
+2. **Run a small, capped batch:**
+   ```bash
+   gbrain enrich --thin --limit 3 --max-usd 0.50 --model anthropic:claude-haiku-4-5
+   ```
+3. **(Optional) turn on the autopilot trickle:**
+   ```bash
+   gbrain config set cycle.enrich_thin.enabled true
+   gbrain dream --phase enrich_thin --dry-run
+   ```
+4. **If anything looks wrong,** file an issue with `gbrain doctor` output:
+   https://github.com/garrytan/gbrain/issues
+
+### Itemized changes
+
+- **`gbrain enrich --thin`** — batch develops thin (stub) pages via brain-internal
+  grounded synthesis. Flags: `--order inbound-links|salience|updated`,
+  `--types person,company`, `--limit`, `--workers`, `--model`, `--max-usd`,
+  `--min-context`, `--reenrich-after`, `--source`, `--dry-run`, `--resume`,
+  `--background [--follow]`, `--json`, `--yes`.
+- **New engine method `listEnrichCandidates`** (Postgres + PGLite parity) — one
+  source-aware SQL query: thin-filter + per-page source-correct inbound-link
+  count + `enriched_at` recency guard + whitelisted ORDER BY + LIMIT, returning a
+  lightweight projection (no page bodies) so ranking 100K stubs stays cheap.
+- **Opt-in `enrich_thin` autopilot phase** (default OFF) with per-source and
+  brain-wide cost + walltime caps; develops `max_pages_per_tick` (default 3) per
+  source.
+- **`--background`** fans out one Minion job per source (or one job with
+  `--source`); the per-source idempotency key carries the full run config so a
+  re-run with different flags enqueues new work instead of returning the old job.
+- **Provenance:** enriched pages stamp `enriched_at` + `enriched_by: cli:enrich`
+  (survives `put_page` write-through); the recency guard reads `enriched_at`.
+- **Prompt-injection hardening:** retrieved brain content is sanitized before it
+  enters the prompt, including neutralizing the `<context>` data-envelope
+  delimiters so an untrusted note can't close the envelope and inject
+  instructions.
+- **Budget honesty:** a final-call cost overage is now flagged on the result even
+  when the gateway swallowed the throw; the checkpoint is flushed on budget
+  exhaustion so a resume doesn't re-charge already-completed pages.
+- Refused on thin-client / HTTP MCP installs (spends model budget + writes pages).
+
 ## [0.42.2.0] - 2026-05-30
 
 **One command now wires Claude Code, Codex, or Perplexity Computer to a remote
