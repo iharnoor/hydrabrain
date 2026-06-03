@@ -3550,14 +3550,20 @@ export async function computePoolReapHealthCheck(
     return null;
   }
 
-  if (r.reaps > 0 && r.failures > 0) {
+  // CODEX (impl review #3): the audit counts independent event kinds — it does
+  // NOT correlate a reconnect_failed to a preceding reap. So `reaps>0 AND
+  // failures>0` would falsely report "not auto-recovering" when a recovered reap
+  // and an unrelated reconnect failure merely co-occur in the same hour. Fail on
+  // the reconnect FAILURES themselves (reconnect throwing is the real, actionable
+  // problem regardless of reaps); report reaps as context, not as a causal claim.
+  if (r.failures > 0) {
     const fix = 'check DB reachability / credentials (reconnect is throwing)';
     return {
       name: 'pool_reap_health',
       status: 'fail',
       message:
-        `DB pool reaped ${r.reaps}× and reconnect FAILED ${r.failures}× in last hour ` +
-        `— not auto-recovering; ${fix}.`,
+        `DB reconnect FAILED ${r.failures}× in last hour (${r.reaps} pooler reap(s) detected) ` +
+        `— reconnect is throwing; ${fix}.`,
       details: { reaps: r.reaps, recoveries: r.recoveries, failures: r.failures, fix_hint: fix },
     };
   }

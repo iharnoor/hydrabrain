@@ -545,20 +545,34 @@ export async function runAutopilot(engine: BrainEngine, args: string[]) {
                     if (!src.local_path) continue;
                     const backlog = await countExtractAtomsBacklog(engine, src.id);
                     if (backlog === null || backlog <= threshold) continue;
+                    // Time-sloted key (CODEX #2): a static key would block the
+                    // source FOREVER once the first job completes. A new UTC-day
+                    // slot reopens it each day.
+                    const idemKey = `autopilot-extract-atoms-drain:${src.id}:${utcDay}`;
                     try {
+                      // CODEX (impl review #4): DO NOT use maxWaiting here — it
+                      // coalesces by (name, queue), NOT by source, so source B's
+                      // submit would return source A's waiting row, B would never
+                      // queue, and the cap counter would over-count. The per-source
+                      // idempotency key is the correct dedup. Pre-check it so we
+                      // submit + count only genuinely-new sources (queue.add returns
+                      // the existing row on an idempotency hit with no created flag,
+                      // which would otherwise over-count the daily cap). The
+                      // single-instance autopilot lock + the unique idempotency
+                      // index make this pre-check race-free.
+                      const dupe = await engine.executeRaw<{ one: number }>(
+                        `SELECT 1 AS one FROM minion_jobs WHERE idempotency_key = $1 LIMIT 1`,
+                        [idemKey],
+                      );
+                      if (dupe.length > 0) continue; // already queued/drained for this source today
                       const job = await queue.add(
                         'extract-atoms-drain',
                         { sourceId: src.id, window: windowSeconds, repoPath: src.local_path },
                         {
                           queue: 'default',
-                          // Time-sloted key (CODEX #2): a static key would block
-                          // the source FOREVER once the first job completes, since
-                          // queue.add returns any existing row for the key. A new
-                          // UTC-day slot reopens it each day.
-                          idempotency_key: `autopilot-extract-atoms-drain:${src.id}:${utcDay}`,
+                          idempotency_key: idemKey,
                           max_attempts: 1,
                           timeout_ms: timeoutMs,
-                          maxWaiting: 1,
                         },
                         { allowProtectedSubmit: true },
                       );

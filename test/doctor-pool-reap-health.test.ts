@@ -30,14 +30,27 @@ describe('computePoolReapHealthCheck', () => {
     expect(await computePoolReapHealthCheck(null)).toBeNull();
   });
 
-  test('fail when reaps>0 AND reconnect failed (not auto-recovering)', async () => {
+  test('fail when reconnect failed (reconnect is throwing)', async () => {
     await withEnv({ GBRAIN_AUDIT_DIR: tmpDir }, async () => {
       logPoolRecovery('reap_detected');
       logPoolRecovery('reconnect_failed', new Error('EHOSTUNREACH'));
       const c = await computePoolReapHealthCheck(pg);
       expect(c?.status).toBe('fail');
-      expect(c?.message).toContain('not auto-recovering');
+      expect(c?.message).toContain('reconnect is throwing');
       expect(c?.name).toBe('pool_reap_health');
+    });
+  });
+
+  // CODEX impl review #3: the fail trigger is the reconnect FAILURES themselves
+  // (reconnect throwing is the real, actionable problem), NOT a fabricated
+  // reap→failure causal link. A reconnect_failed with zero reaps still fails.
+  test('fail on reconnect failure even with zero reaps (no false causality)', async () => {
+    await withEnv({ GBRAIN_AUDIT_DIR: tmpDir }, async () => {
+      logPoolRecovery('reconnect_failed', new Error('password authentication failed'));
+      const c = await computePoolReapHealthCheck(pg);
+      expect(c?.status).toBe('fail');
+      expect(c?.message).toContain('0 pooler reap(s) detected');
+      expect(c?.message).not.toContain('not auto-recovering');
     });
   });
 

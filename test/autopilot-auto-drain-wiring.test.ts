@@ -42,4 +42,13 @@ describe('autopilot auto-drain wiring', () => {
   test('is Postgres-gated (PGLite has no worker surface)', () => {
     expect(SRC).toMatch(/engine\.kind === 'postgres'[\s\S]{0,400}auto_drain/);
   });
+
+  test('CODEX impl #4: no maxWaiting (it coalesces by name+queue, not source)', () => {
+    // maxWaiting would return source A's waiting job for source B's submit,
+    // never queuing B and over-counting the cap. The per-source idempotency key
+    // is the dedup; a pre-check on it avoids counting idempotency-hit re-submits.
+    const drainBlock = SRC.slice(SRC.indexOf("'extract-atoms-drain'"));
+    expect(drainBlock.slice(0, 900)).not.toContain('maxWaiting');
+    expect(SRC).toContain('WHERE idempotency_key = $1 LIMIT 1');
+  });
 });
