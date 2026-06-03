@@ -2,6 +2,37 @@
 
 All notable changes to GBrain will be documented in this file.
 
+## [0.42.19.0] - 2026-06-02
+
+**Background agents and `gbrain skillopt` work again when you point them at a non-Anthropic model.** If you set your subagent or dream-synthesize model to DeepSeek, Qwen, Groq, OpenRouter, or a local model, every tool-using agent run died on the first turn with `schema is not a function`. Nothing got written. The error was the same on Anthropic too once the gateway agent loop was on, and `gbrain skillopt` was broken on every provider because it always uses that loop. Plain chat (`gbrain think`, search, sync, extract, the dream significance judge) was never affected — only the agent loop that calls tools.
+
+The cause was an upgrade to the Vercel AI SDK v6. The SDK changed how it wants tool definitions and tool results shaped, and gbrain was still handing it the old shape. Two things were wrong: the tool's input schema was a plain object the SDK tried to call as a function, and tool results were fed back in a message shape v6 rejects. This release fixes both at the one place that talks to the SDK, so the agent loop stays provider-neutral everywhere else.
+
+If you were running a fully non-Anthropic brain (for cost, or local models), this was the last thing standing in the way. It works now.
+
+### How to turn it on
+
+Nothing to turn on. `gbrain upgrade` and you're done. If you'd parked your subagent model back on Anthropic to dodge the bug, you can point it wherever you want again:
+
+```
+gbrain config set agent.use_gateway_loop true
+gbrain config set models.tier.subagent deepseek:deepseek-chat   # or groq:..., openrouter:..., a local model
+gbrain agent run "use put_page once to write a short page, then stop"
+```
+
+### One thing to know about
+
+Crash-resume for multi-turn agent jobs on non-Anthropic providers is still rough and is tracked as a separate follow-up. It does NOT affect normal (non-crashed) runs, which is what the bug reports were about. If a long subagent job is killed mid-run and resumed, it can still dead-letter; re-submitting it from scratch works. Details in TODOS.md.
+
+### Itemized changes
+
+- **Primary fix** (`src/core/ai/gateway.ts`): tool input schemas are now wrapped with the SDK's `jsonSchema()` helper instead of a bare object, so v6's schema normalizer accepts them.
+- **Tool-result shape fix** (`src/core/ai/gateway.ts`): a new `toModelMessages()` adapter at the gateway boundary converts gbrain's internal messages into the exact v6 wire shape — tool results ride on a `role:'tool'` message with typed `output` (`json` for success, `error-text` for failures), non-serializable output is normalized, and parallel tool calls in one turn pair back correctly. The agent loop itself stays provider-neutral; all SDK-specific shaping lives in this one function.
+- **SkillOpt schema fidelity** (`src/core/skillopt/rollout.ts`, `src/core/skillopt/write-capture.ts`): both tool builders now use the shared `paramDefToSchema` mapper, so enum/default/items metadata reaches the model instead of being silently dropped.
+- **Tests**: a real-AI-SDK integration test (`MockLanguageModelV3` + `generateText`, no network) now exercises the exact path that broke — including regression guards that the pre-fix shapes are rejected by v6 — closing the gap that let this ship in the first place.
+
+Credit to the contributors who diagnosed and fixed this: michaeladair44 (the `jsonSchema()` fix), justemu (independent diagnosis), and JE4NVRG (the tool-result-shape work this builds on).
+
 ## [0.42.10.0] - 2026-06-02
 
 **Wikilinks like `[[struktura]]` that point at pages in another folder finally connect.** Until now, if you wrote `[[struktura]]` in `concepts/knowledge-graph.md` and the actual page lived at `projects/struktura.md`, GBrain silently dropped the link from its graph. Obsidian users saw a dense web of connections in their vault and a thin, broken graph inside GBrain. The issue reporter had 71 wikilinks across 20 pages — GBrain captured 12.
