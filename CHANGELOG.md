@@ -2,6 +2,62 @@
 
 All notable changes to GBrain will be documented in this file.
 
+## [0.42.12.0] - 2026-06-02
+
+**GBrain now keeps itself current the way your coding agent already keeps gstack current: it rides every invocation.** Until now, a gbrain install would quietly drift. You'd run an old binary against a newer brain schema, `gbrain doctor` would mutter about it, and nobody would act. There was no nudge at the moment you'd actually see it.
+
+Now every `gbrain` command is a heartbeat. On a new release it prints a one-line nudge to stderr, and `gbrain self-upgrade` applies it. This works the same on Claude Code, Codex, OpenClaw, Hermes, and Perplexity, because they all run gbrain. No cron to install, no per-agent setup, no capability detection. The check is cache-read-only on the hot path, so `gbrain search` is not one millisecond slower; the actual network refresh happens detached in the background and never blocks a command.
+
+Default is **notify** (a nudge, never a surprise upgrade). If you run an always-on install (an OpenClaw daemon, or the `gbrain serve` host behind a thin client) and want it hands-off, opt in once:
+
+```
+gbrain config set self_upgrade.mode auto
+```
+
+In `auto` mode the autopilot daemon applies upgrades silently, but only during quiet hours, only when the brain is idle (no running jobs, no in-flight requests), and only after a post-upgrade `gbrain doctor` passes. A release that fails doctor is recorded and never retried.
+
+What you'd see, by agent kind:
+
+| Agent | What happens | Default |
+|---|---|---|
+| Claude Code / Codex | nudge on stderr, you run `gbrain self-upgrade` | notify |
+| OpenClaw / Hermes daemon | nudge; set `auto` for hands-off | notify |
+| `gbrain serve` host | nudge; set `auto` for hands-off (idle-gated) | notify |
+| Perplexity / thin client | nudge is informational; the server self-upgrades | n/a |
+
+The `binary` install method (the compiled standalone) now does a **real atomic self-update** on macOS-arm64 and Linux-x64: it downloads the published release asset, smoke-tests it, then atomically renames it over the running binary. Any failure leaves your old binary untouched. There is no half-written-binary brick path. Other platforms degrade to a notify nudge.
+
+Things worth knowing: this is the same TLS-plus-GitHub trust model `gbrain upgrade` already used. Signature verification is a deliberate follow-up (tracked in TODOS), which is why `auto` stays opt-in rather than a default. The auto-update guide reversed its old "never auto-upgrade" stance to document the opt-in path and its gates.
+
+### To take advantage of v0.42.12.0
+
+`gbrain upgrade` does this automatically. After it, every invocation nudges you when a release lands.
+
+1. **Nothing required for the nudge** — it rides your next `gbrain` command.
+2. **Hands-off on an always-on install:** `gbrain config set self_upgrade.mode auto`
+3. **Turn it off entirely:** `gbrain config set self_upgrade.mode off`
+4. **Verify:**
+   ```bash
+   gbrain self-upgrade --check-only --json
+   gbrain doctor --json | grep self_upgrade_health
+   ```
+5. If anything looks wrong, file an issue with `gbrain doctor` output and `~/.gbrain/upgrade-errors.jsonl`.
+
+### Itemized changes
+
+- **`gbrain self-upgrade [--check-only] [--force] [--json]`** — the universal entry point both the agent skill and the silent channel call.
+- **Invocation marker** baked into CLI startup (cache-read-only, detached single-flight refresh, skip-set + recursion guard) and surfaced on the `get_brain_identity` MCP response.
+- **Autopilot silent channel** (opt-in `auto`): swap-only + breadcrumb + exit-for-relaunch. `installSystemd` now writes `Restart=always` (a clean exit must relaunch the new binary, since Bun has no `execve`); `gbrain upgrade` rewrites an existing `Restart=on-failure` unit in place (only when it matches the generated template; hand-edited units are left alone).
+- **Atomic binary self-update** (`src/core/binary-self-update.ts`) for macOS-arm64 / Linux-x64; `gbrain upgrade --swap-only` for the daemon fast path.
+- **`gbrain doctor` → `self_upgrade_health`**: mode, whether you're behind, recent failures.
+- **New `gbrain-upgrade` agent skill** mirroring the inline upgrade flow, wired into the resolver.
+- Config plane: `self_upgrade.mode` (`auto`/`notify`/`off`, default notify) plus quiet-hours and state keys, all file-plane so the hot path needs no DB.
+- New tests: pure decision matrix, atomic-cache/snooze, marker grammar, a real-HTTP-server binary-swap E2E, and a network-stubbed refresh-orchestration test.
+
+#### For contributors
+
+- `src/core/semver.ts` extracted from `check-update.ts` (re-exported for back-compat) to break an import cycle with the self-upgrade module.
+
 ## [0.42.10.0] - 2026-06-02
 
 **Wikilinks like `[[struktura]]` that point at pages in another folder finally connect.** Until now, if you wrote `[[struktura]]` in `concepts/knowledge-graph.md` and the actual page lived at `projects/struktura.md`, GBrain silently dropped the link from its graph. Obsidian users saw a dense web of connections in their vault and a thin, broken graph inside GBrain. The issue reporter had 71 wikilinks across 20 pages — GBrain captured 12.
