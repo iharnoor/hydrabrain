@@ -22,29 +22,23 @@ describe('buildRetrievalReflexCheck', () => {
   test('enabled → reports policy-skill install state in details', async () => {
     await withEnv({ GBRAIN_RETRIEVAL_REFLEX: 'true' }, async () => {
       const dir = mkdtempSync(join(tmpdir(), 'rr-doctor-'));
-      try {
-        mkdirSync(join(dir, 'retrieval-reflex'), { recursive: true });
-        writeFileSync(join(dir, 'retrieval-reflex', 'SKILL.md'), '# stub\n');
-        const c = buildRetrievalReflexCheck(dir);
-        expect(c.name).toBe('retrieval_reflex_health');
-        expect((c.details as any)?.enabled).toBe(true);
-        expect((c.details as any)?.policy_skill_installed).toBe(true);
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
+      mkdirSync(join(dir, 'retrieval-reflex'), { recursive: true });
+      writeFileSync(join(dir, 'retrieval-reflex', 'SKILL.md'), '# stub\n');
+      const c = buildRetrievalReflexCheck(dir);
+      expect(c.name).toBe('retrieval_reflex_health');
+      expect((c.details as any)?.enabled).toBe(true);
+      expect((c.details as any)?.policy_skill_installed).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
     });
   });
 
   test('enabled, policy skill absent → message includes the install hint', async () => {
     await withEnv({ GBRAIN_RETRIEVAL_REFLEX: 'true' }, async () => {
       const dir = mkdtempSync(join(tmpdir(), 'rr-doctor-2-'));
-      try {
-        const c = buildRetrievalReflexCheck(dir);
-        expect((c.details as any)?.policy_skill_installed).toBe(false);
-        expect(c.message).toContain('gbrain integrations install retrieval-reflex');
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
+      const c = buildRetrievalReflexCheck(dir);
+      expect((c.details as any)?.policy_skill_installed).toBe(false);
+      expect(c.message).toContain('gbrain integrations install retrieval-reflex');
+      rmSync(dir, { recursive: true, force: true });
     });
   });
 });

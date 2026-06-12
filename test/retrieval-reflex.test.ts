@@ -8,8 +8,8 @@
  * shape the serve IPC / host ctx.brainQuery supply).
  */
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
-import { withEnv } from './helpers/with-env.ts';
 import { PGLiteEngine } from '../src/core/pglite-engine.ts';
+import { withEnv } from './helpers/with-env.ts';
 import { normalizeAlias } from '../src/core/search/alias-normalize.ts';
 import { resolveEntitiesToPointers } from '../src/core/context/retrieval-reflex.ts';
 import { extractCandidates } from '../src/core/context/entity-salience.ts';
@@ -109,13 +109,12 @@ describe('resolveEntitiesToPointers', () => {
 });
 
 describe('context-engine assemble() — Retrieval Reflex integration', () => {
-  // R1 isolation: scope the reflex flag to each test via withEnv (the prior
-  // beforeEach mutated process.env for the whole shard and never restored it).
-  const withReflexOn = (fn: () => Promise<void>) =>
-    withEnv({ GBRAIN_RETRIEVAL_REFLEX: 'true' }, fn);
+  // Each test wraps its body in withEnv (NOT a beforeEach env mutation) so the
+  // flag is restored even on throw — required by check-test-isolation rule R1.
+  const REFLEX_ON = { GBRAIN_RETRIEVAL_REFLEX: 'true' };
 
   test('regression: a named entity with a page surfaces a pointer (host resolver path)', async () => {
-    await withReflexOn(async () => {
+    await withEnv(REFLEX_ON, async () => {
       await seed('people/alice-example', 'Alice Example', 'Alice is a founder.');
       // Inject a resolver the way the OpenClaw host (ctx.brainQuery) or serve IPC would.
       const ce = createGBrainContextEngine({
@@ -134,7 +133,7 @@ describe('context-engine assemble() — Retrieval Reflex integration', () => {
   });
 
   test('no resolver available (PGLite, no serve/host) → no throw, live context still present', async () => {
-    await withReflexOn(async () => {
+    await withEnv(REFLEX_ON, async () => {
       const ce = createGBrainContextEngine({ workspaceDir: '/tmp/rr-test-ws-2' });
       const res = await ce.assemble({
         sessionId: 's2',
@@ -147,7 +146,7 @@ describe('context-engine assemble() — Retrieval Reflex integration', () => {
   });
 
   test('zero salient candidates → no brain touch, no pointer block', async () => {
-    await withReflexOn(async () => {
+    await withEnv(REFLEX_ON, async () => {
       let called = false;
       const ce = createGBrainContextEngine({
         workspaceDir: '/tmp/rr-test-ws-3',
@@ -163,7 +162,7 @@ describe('context-engine assemble() — Retrieval Reflex integration', () => {
   });
 
   test('suppression uses PRIOR turns only, not the current message', async () => {
-    await withReflexOn(async () => {
+    await withEnv(REFLEX_ON, async () => {
       await seed('people/alice-example', 'Alice Example', 'A founder.');
       const ce = createGBrainContextEngine({
         workspaceDir: '/tmp/rr-test-ws-4',
