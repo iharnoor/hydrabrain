@@ -2,6 +2,54 @@
 
 All notable changes to GBrain will be documented in this file.
 
+## [0.43.0.0] - 2026-06-12
+
+**Your agent now has five memory verbs it can actually reach.** Cathedral 1 freezes
+a stable, versioned memory protocol — `recall`, `remember`, `entity`, `synthesize`,
+`forget` — over the brain's operation catalog, the way Postgres speaks one wire
+protocol to every client. Point any MCP harness at it (`claude mcp add gbrain --
+gbrain serve --surface verbs`, or the Codex/OpenClaw equivalents) and the agent sees
+exactly five self-describing tools instead of a wall of internal ops. Every response
+carries what it is, why it matched, where it came from, and what it cost — and the
+contract never breaks: v1 field names and meanings are frozen, changes are
+additive-forever.
+
+What you can do now that you couldn't before:
+
+- **Remember a fact once, recall it in a fresh session — in any harness.** `remember`
+  takes mandatory provenance (where the fact came from) and an optional expiry, dedupes
+  against what's already known, and updates in place when a fact changes
+  ("X joined acme-example" → "X left acme-example"). `recall` retrieves saved facts and,
+  with a query, budget-packed page snippets — the server enforces the token budget and
+  tells you what it dropped instead of trusting the client to trim.
+- **Look up one person/company/project as a compact card in well under 100ms, zero LLM
+  calls.** `entity` resolves a name to a privacy-safe card (who/what, aliases,
+  last-touched, open threads, top typed edges) — or, on a miss, near-miss suggestions
+  instead of a dead end.
+- **Reason across pages when you actually need it.** `synthesize` is the explicitly
+  expensive verb (it says so in its own description), with a best-effort cost block so
+  agents choose it deliberately. No API key configured? It says `unavailable` with a
+  fix, never a fake answer.
+- **Certify any memory server against the contract.** `gbrain protocol --json` publishes
+  the machine-readable spec; `gbrain protocol conformance [--target <endpoint>]` runs the
+  frozen-contract test suite against gbrain's own server or any MCP endpoint — and
+  provably fails servers that don't comply. `gbrain protocol stats` shows per-verb
+  adoption and your real time-to-first-use, all from a local file that never leaves
+  your machine.
+
+`gbrain serve` keeps every operation by default (`--surface full`) — existing installs
+are unchanged. The new `--surface verbs` is the quickstart surface for agents. No schema
+migration; the verbs ride the existing facts, pages, and typed-graph tables. The full
+contract, per-harness install blocks, and the additive-forever versioning policy live in
+[docs/protocol/MEMORY_VERBS_v1.md](docs/protocol/MEMORY_VERBS_v1.md).
+
+To take advantage of v0.43.0.0: re-run `gbrain serve` with `--surface verbs` to give
+your coding agent the five-verb memory protocol (or keep `--surface full` for the
+complete operation catalog — both speak the verbs). Run `gbrain protocol conformance`
+to self-certify, and `gbrain protocol stats` to watch adoption. Memories your agent
+saves are readable by every agent connected to the brain by default; pass
+`visibility: "private"` for local-only facts.
+
 ## [0.42.42.0] - 2026-06-12
 
 **`gbrain query` no longer pays a flat 10-second exit tax on managed Postgres behind a transaction-mode pooler — and CLI exit codes finally tell the truth on PGLite.** On deployments where the pooler holds sockets open past the bounded pool drain (gbrain#2084, a residual of gbrain#1972), every query printed its results and then sat for 10 seconds until the force-exit banner fired. The cause was two-layered: the hard-deadline timer was armed *before* the operation handler, so a multi-second search on a large brain burned the teardown budget (and any operation slower than 10 seconds was silently killed mid-run with exit 0 and truncated output); and the CLI never exited explicitly on success — it waited for Bun's event loop to drain, which a stuck pooler socket can hold open forever.
