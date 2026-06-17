@@ -1,0 +1,5 @@
+requests
+python-dotenv
+google-genai
+rank-bm25
+mcp

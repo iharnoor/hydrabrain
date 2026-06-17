@@ -41,3 +41,11 @@ test/fixtures/pglite-snapshot.version
 
 # Private brain reports — never check these in (per CLAUDE.md privacy rule)
 reports/network-intelligence/
+
+# --- hydrabrain (Python reimplementation) ---
+.env
+__pycache__/
+*.pyc
+bench/results.json
+bench/longmemeval_results.json
+bench/data/
