@@ -10,6 +10,12 @@
 
 ### A [gbrain](https://github.com/garrytan/gbrain) clone, rebuilt on [**HydraDB**](https://hydradb.com) — and benchmarked honestly against a reproduction of its stack.
 
+[![recall@5](https://img.shields.io/badge/recall%405-96.5%25-7c3aed?style=flat-square)](#-benchmark-1--hydradb-vs-a-faithful-gbrain-stack)
+[![vs gbrain full stack](https://img.shields.io/badge/vs%20gbrain%20full%20stack-%2B4.4%20pts-16a34a?style=flat-square)](#tldr)
+[![fork of gbrain](https://img.shields.io/badge/fork%20of-garrytan%2Fgbrain-555?style=flat-square&logo=github)](https://github.com/garrytan/gbrain)
+[![license MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.14-3776ab?style=flat-square&logo=python&logoColor=white)](requirements.txt)
+
 **On a 19-document corpus, vs a reproduction of gbrain's *full* retrieval stack (vector + BM25 + RRF + reranker):**
 **`recall@5 96.5%` vs `92.1%`  ·  answers correct `12/19` vs `8/19`  ·  0 losses / 19 queries  ·  (loses MRR: 0.912 vs 0.947)**
 
@@ -42,6 +48,8 @@ Benchmark #1, recall@5 (gbrain's own P@5 metric), against **two** versions of gb
 | **MRR** | 0.912 | **0.947** | 0.675 |
 | **answers correct (LLM-judge)** | **12 / 19** 🟢 | 8 / 19 | 8 / 19 |
 | **per-query (vs full stack)** | **2 wins · 0 losses · 17 ties** | 0 wins | — |
+
+<p align="center"><img src="bench/assets/recall.svg" alt="recall@5 — HydraDB 96.5% vs gbrain full stack 92.1% vs fusion core 75.4%" width="720"></p>
 
 Two honest readings:
 - **The graph is worth +21 points** over gbrain's *fusion core* (96.5% vs 75.4%) — the mirror of
@@ -155,6 +163,47 @@ graph-dependent gaps remain.)*
 Full per-query table → **`bench/report.html`**. HydraDB result is **deterministic** — identical across 3 repeated runs.
 
 ---
+
+## What actually drives the accuracy — reranker vs. graph
+
+Straight from this benchmark, building up the graph-less baseline:
+
+| pipeline | recall@5 |
+|---|:---:|
+| vector + BM25 + RRF (fusion core) | 75.4% |
+| **+ reranker** | **92.1%** |
+| HydraDB — graph-native, *no* separate reranker | **96.5%** |
+
+**The reranker is the single biggest lever (~+17 pts).** Why: vector search is a *bi-encoder* —
+query and document are embedded **separately**, so it never sees them together. A reranker
+(cross-encoder / LLM) reads query **+** passage **jointly** and judges relevance directly — far
+more precise, but too expensive to index, so it only re-scores the top-k that cheap retrieval
+already surfaced. *"Retrieve wide, then rerank precise"* is where most modern RAG accuracy comes from.
+
+**But a reranker can only reorder what was retrieved — it cannot surface a chunk that was never in
+the candidate set.** That is the graph's unique job, and the data shows it: against the *full
+reranked* baseline, HydraDB's only remaining wins are **Negation (92% vs 67%)** and **Multi-Session
+(100% vs 83%)** — queries where the right chunk isn't lexically or semantically near the query, so
+retrieval never pulls it in and the reranker has nothing to fix. The graph follows a relationship
+**edge** to reach it. *(This is exactly why gbrain credits its **graph**, not its reranker, with "+31.4 P@5.")*
+
+```mermaid
+flowchart LR
+  Q([query]) --> H["vector + BM25"]
+  H --> C["top-k candidates"]
+  C --> RR["reranker<br/>(reorder candidates)"]
+  RR --> A([answer])
+  C -. "right chunk never retrieved" .-> Z["reranker can't fix this"]
+  Q --> G["graph<br/>(follow relationship edge)"]
+  G == "pulls the missing chunk in" ==> C
+```
+
+**So gbrain's accuracy = hybrid retrieval + reranker (the biggest lever) + graph (catches the
+relational / multi-hop queries the first two structurally can't).** They overlap on easy queries
+and complement on hard ones. HydraDB folds the graph into a **single `recall` call**, matching the
+reranked stack with no second model pass — and since the two-stage pattern is complementary,
+**adding a reranker on top of HydraDB would likely push it higher still** (especially the MRR it
+currently loses, 0.912 vs 0.947).
 
 ## 🔬 Benchmark #2 — LongMemEval (the at-scale test)
 
