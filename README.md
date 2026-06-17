@@ -51,6 +51,8 @@ Benchmark #1, recall@5 (gbrain's own P@5 metric), against **two** versions of gb
 
 <p align="center"><img src="bench/assets/recall.svg" alt="recall@5 — HydraDB 96.5% vs gbrain full stack 92.1% vs fusion core 75.4%" width="720"></p>
 
+> 📊 **Full benchmark report — what we ran, how, and on which data (local / partial / full):** [`BENCHMARKS.md`](BENCHMARKS.md)
+
 Two honest readings:
 - **The graph is worth +21 points** over gbrain's *fusion core* (96.5% vs 75.4%) — the mirror of
   gbrain's own *"+31.4 P@5 from the knowledge graph"* claim.
