@@ -36,6 +36,24 @@ class BrainEngine:
         text = p.read_text(encoding="utf-8", errors="ignore")
         return self.client.add_memory(text, title=p.name, infer=True)
 
+    def ingest_url(self, url: str) -> dict:
+        """Fetch a web page / YouTube transcript and capture it (HydraDB wires the graph)."""
+        from . import connectors
+        src = connectors.fetch(url)
+        res = self.client.add_memory(src.text, title=src.title, infer=True)
+        return {"url": url, "title": src.title, "kind": src.kind,
+                "chars": len(src.text), "result": res}
+
+    def sync(self, paths: list[str], *, recursive: bool = True, force: bool = False,
+             dry_run: bool = False, extensions=None, on_progress=None):
+        """Bulk, incremental ingest of files/dirs/globs. See hydrabrain.sync."""
+        from . import sync as _sync
+        kwargs = dict(tenant_id=self.client.tenant_id, recursive=recursive,
+                      force=force, dry_run=dry_run, on_progress=on_progress)
+        if extensions:
+            kwargs["extensions"] = tuple(extensions)
+        return _sync.sync(self.client, paths, **kwargs)
+
     # ── retrieve ─────────────────────────────────────────────
     def search(self, query: str, k: int = 5, graph: bool = True) -> list[Chunk]:
         # Memory-type data (infer=True) is served by the preference recall path,

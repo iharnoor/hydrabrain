@@ -40,6 +40,56 @@
 
 ---
 
+## 📍 The migration — gbrain → HydraDB (the headline goal + living tracker)
+
+> **🎯 What we're building & showing off:** a **capability migration** — gbrain, the
+> "next Postgres for memory," **reimplemented feature-for-feature on HydraDB's graph-native
+> store.** gbrain assembles its memory from pgvector + BM25 + RRF + a reranker + a hand-rolled
+> graph extractor; we collapse that whole stack into HydraDB's native `capture`/`recall`.
+> Same capabilities, a fraction of the moving parts — *that's* the story (and the benchmarks
+> below are the receipts). This is the narrative for the blog posts / articles / threads.
+>
+> **Scope (important for honesty):** this is **(A) capability reimplementation** — rebuilding
+> gbrain's *features* on HydraDB as a fresh Python package (`hydrabrain/`). It is **not**
+> **(B) data-migration ETL**: there's no tool that reads an existing gbrain pgvector/graph
+> brain and bulk-loads it into HydraDB, and that's out of scope. gbrain's TS `src/` stays
+> unchanged (it legitimately uses pgvector/PGLite); the benchmark *reproduces* gbrain's
+> algorithm, it never reads a real gbrain database.
+>
+> **Legend:** ✅ done · 🟡 partial · ⬜ not started. *Last updated: 2026-06-18.*
+
+**Stage: core memory loop migrated + benchmarked — the part worth showing off. Operational/product surface still ahead (~6 of gbrain's ~92 ops).**
+
+| Area | Status | Notes |
+|---|:---:|---|
+| Ingest / capture | ✅ | `capture` / `ingest_file` → `add_memory(infer=True)` |
+| Hybrid retrieval (vector+BM25+RRF+rerank) | ✅ | one native HydraDB `recall` call |
+| Self-wiring knowledge graph | ✅ | native `infer=True`, no extractor code |
+| Synthesis (cited answers) | ✅ | `think` — Gemini grounding over HydraDB chunks |
+| Graph traversal / explore | 🟡 | `graph_relations` by `source_id` only |
+| Status / list / delete / wipe | ✅ | tenant + memory count, live deletes |
+| CLI (`hydrabrain`) | ✅ | `status/capture/ingest/search/think/graph/serve/bench` |
+| MCP server | 🟡 | 5 tools (gbrain ships 30+) |
+| Benchmark #1 (19-doc relational) | ✅ | HydraDB 96.5% vs 92.1% full stack |
+| Benchmark #2 (LongMemEval `_s`) | 🟡 | harness ready; decisive run not done (oracle inconclusive) |
+| Sources / brains two-axis routing, mounts | ⬜ | gbrain's core org model — not ported |
+| Bulk sync / import | ✅ | `brain.sync(dir)` / `hydrabrain sync` — incremental, content-hash dedup, manifest-backed |
+| Export | ⬜ | dump a tenant back out to files — not built |
+| Enrichment / extraction / schema+lens packs | ⬜ | — |
+| Cron / scheduling / reports | ⬜ | — |
+| Identity / access control / trust boundary | ⬜ | — |
+| Advisor / skillpacks | ⬜ | — |
+| Ingestion connectors (articles / YouTube / IG) | 🟡 | web article reader + YouTube transcript shipped (`hydrabrain read <url>`); IG/podcasts next |
+| Chat UI over `think()` | ⬜ | north-star surface |
+| Data-migration ETL (real gbrain brain → HydraDB) | — | **out of scope** — this is a capability migration, not a data move |
+
+**Recently shipped:** ✅ bulk incremental `sync` (dir/glob, content-hash dedup, idempotent) · ✅ web/YouTube
+connectors (`hydrabrain read <url>` → article text / video transcript → `capture`).
+**Next up (in priority order):** (1) decisive LongMemEval `_s` run *(in flight)* · (2) more connectors
+(Instagram saves, podcasts) · (3) enrichment. See [Next steps](#next-steps-toward-the-north-star).
+
+---
+
 ## TL;DR
 
 Benchmark #1, recall@5 (gbrain's own P@5 metric), against **two** versions of gbrain's stack:
@@ -263,7 +313,9 @@ python3 -m bench.longmemeval --data bench/data/longmemeval_s_cleaned.json --limi
 | Synthesis layer (cited prose + gap analysis) | `brain.think()` (Gemini grounding over retrieved chunks) |
 | 30+ tool MCP server (stdio) | `hydrabrain serve` (FastMCP: capture/search/think/graph/status) |
 | Eval framework (LongMemEval-style P@5) | `bench/` — two benchmarks, recall@5 / MRR / LLM-judge / QA acc |
-| CLI (`init/capture/search/think/sync`) | `hydrabrain` CLI (`capture/ingest/search/think/graph/status`) |
+| Bulk sync (incremental dir ingest) | `brain.sync(paths)` / `hydrabrain sync <dir>` — content-hash dedup, idempotent |
+| Ingestion connectors (consume the web) | `brain.ingest_url(url)` / `hydrabrain read <url>` — article reader + YouTube transcript |
+| CLI (`init/capture/search/think/sync`) | `hydrabrain` CLI (`capture/ingest/sync/search/think/graph/status`) |
 
 ### CLI
 
@@ -271,6 +323,10 @@ python3 -m bench.longmemeval --data bench/data/longmemeval_s_cleaned.json --limi
 python3 -m hydrabrain.cli status
 python3 -m hydrabrain.cli capture "Saved a YouTube video on espresso ratios: 1:2 in 28s."
 python3 -m hydrabrain.cli ingest notes/*.md
+python3 -m hydrabrain.cli sync ~/notes            # bulk, incremental — skips unchanged files
+python3 -m hydrabrain.cli sync ~/notes --dry-run  # preview what would ingest
+python3 -m hydrabrain.cli read https://example.com/post   # ingest an article
+python3 -m hydrabrain.cli read https://youtu.be/VIDEO_ID   # ingest a video transcript
 python3 -m hydrabrain.cli search "espresso ratio" -k 5
 python3 -m hydrabrain.cli think  "what coffee setup did I save?"
 python3 -m hydrabrain.cli serve         # MCP stdio server
@@ -351,7 +407,9 @@ Both sides get their **best** shot — this is engineered to be *hard* for Hydra
 ```
 hydrabrain/        the gbrain-style memory engine on HydraDB
   client.py        HydraDB REST client (ingest / hybrid recall / graph / delete)
-  engine.py        BrainEngine: capture / ingest_file / search / think / graph
+  engine.py        BrainEngine: capture / ingest_file / sync / ingest_url / search / think / graph
+  sync.py          bulk incremental ingest (dir/glob, content-hash dedup, manifest)
+  connectors.py    web connectors: article reader (stdlib HTML→text) + YouTube transcript
   synth.py         synthesis layer — cited answer + gap analysis (Gemini)
   cli.py           the hydrabrain CLI       mcp_server.py   MCP stdio server (FastMCP)
   config.py        env + recall tuning (mode=thinking, alpha=1.0)

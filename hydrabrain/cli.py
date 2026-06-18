@@ -4,6 +4,8 @@ Commands (mirroring gbrain):
   hydrabrain status                 show tenant + memory count
   hydrabrain capture "<text>"       ingest a thought / consumed content
   hydrabrain ingest <file...>       ingest text/markdown files
+  hydrabrain sync <dir|glob...>     bulk, incremental ingest (skips unchanged files)
+  hydrabrain read <url...>          ingest a web article / YouTube transcript
   hydrabrain search "<query>"       hybrid vector+graph+BM25 retrieval
   hydrabrain think  "<query>"       synthesized, cited answer + gap analysis
   hydrabrain graph  <source_id>     explore the knowledge graph
@@ -39,6 +41,31 @@ def cmd_ingest(args):
     for path in args.files:
         eng.ingest_file(path)
         print(f"ingested: {path}")
+
+
+def cmd_read(args):
+    eng = _engine(args)
+    for url in args.urls:
+        try:
+            res = eng.ingest_url(url)
+            print(f"read [{res['kind']}] {res['chars']} chars — {res['title'][:80]}")
+        except Exception as e:
+            print(f"failed: {url} — {type(e).__name__}: {str(e)[:120]}")
+
+
+def cmd_sync(args):
+    eng = _engine(args)
+    exts = [e if e.startswith(".") else f".{e}" for e in args.ext] if args.ext else None
+
+    def _progress(done, total, path, action):
+        if action in {"ingested", "would-ingest"} or action.startswith("error"):
+            import os
+            print(f"  [{done}/{total}] {action:13} {os.path.basename(path)}")
+
+    res = eng.sync(args.paths, recursive=not args.no_recursive, force=args.force,
+                   dry_run=args.dry_run, extensions=exts, on_progress=_progress)
+    tag = "DRY RUN — " if args.dry_run else ""
+    print(f"\n{tag}sync done: {json.dumps(res.summary())}")
 
 
 def cmd_search(args):
@@ -87,6 +114,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("ingest")
     sp.add_argument("files", nargs="+"); sp.set_defaults(func=cmd_ingest)
+
+    sp = sub.add_parser("read", help="ingest a web page / YouTube transcript by URL")
+    sp.add_argument("urls", nargs="+", help="article or YouTube URLs")
+    sp.set_defaults(func=cmd_read)
+
+    sp = sub.add_parser("sync", help="bulk, incremental ingest of dirs/files/globs")
+    sp.add_argument("paths", nargs="+", help="directories, files, or globs")
+    sp.add_argument("--ext", nargs="*", default=None, help="file extensions to include (default: md/txt/rst/org/…)")
+    sp.add_argument("--no-recursive", action="store_true", help="do not descend into subdirectories")
+    sp.add_argument("--force", action="store_true", help="ignore the manifest; re-ingest everything")
+    sp.add_argument("--dry-run", action="store_true", help="show what would be ingested without writing")
+    sp.set_defaults(func=cmd_sync)
 
     sp = sub.add_parser("search")
     sp.add_argument("query"); sp.add_argument("-k", type=int, default=5)

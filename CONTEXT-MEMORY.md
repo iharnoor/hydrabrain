@@ -14,7 +14,9 @@ The Python `hydrabrain/` package is the HydraDB-backed reimplementation of gbrai
   - `add_memory(... infer=true)` — writes memories and lets HydraDB build the knowledge graph natively.
   - `recall_preferences(... mode="thinking", alpha=1.0)` — hybrid recall with the thinking recall mode and dense-leaning fusion weight.
   - `graph(...)` — native graph traversal / context expansion.
-- **`engine.py`** — `BrainEngine`, the gbrain-style capability surface backed entirely by HydraDB. Constructs a `HydraDBClient` and exposes `capture` / `ingest_file` / `search` / `think` / `graph` (and `status`); every operation routes to HydraDB recall.
+- **`engine.py`** — `BrainEngine`, the gbrain-style capability surface backed entirely by HydraDB. Constructs a `HydraDBClient` and exposes `capture` / `ingest_file` / `sync` / `search` / `think` / `graph` (and `status`); every operation routes to HydraDB recall.
+- **`sync.py`** — bulk, incremental ingest of directories / globs into HydraDB. Content-hash + local manifest make re-runs idempotent (unchanged files skipped); each new/changed file is captured via `add_memory(infer=True)`. This is the north-star "dump in all my content" path, beyond single-file `ingest`.
+- **`connectors.py`** — web ingestion connectors. `fetch(url)` routes to an article reader (stdlib `HTMLParser` → clean text, no extra deps) or a YouTube transcript fetcher (optional `youtube-transcript-api`), returning normalized text that `BrainEngine.ingest_url` captures into HydraDB. Extensible: add one `fetch_*` function per source.
 - **`synth.py`** — produces cited answers. All facts come from HydraDB retrieval; Gemini is only the writer/grounding layer, never a store.
 - **`mcp_server.py`** — MCP server exposing `capture` / `search` / `think` / `graph` / `status`. Header correctly states "Backed entirely by HydraDB."
 - **`cli.py`** — `hydrabrain` CLI (`status` / `capture` / `ingest` / `search` / `think` / `graph` / `serve` / `bench`), backed by HydraDB via `BrainEngine`.
