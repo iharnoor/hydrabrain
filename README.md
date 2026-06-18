@@ -56,7 +56,7 @@
 > unchanged (it legitimately uses pgvector/PGLite); the benchmark *reproduces* gbrain's
 > algorithm, it never reads a real gbrain database.
 >
-> **Legend:** ✅ done · 🟡 partial · ⬜ not started. *Last updated: 2026-06-18.*
+> **Legend:** ✅ done · 🟡 partial · ◐ delegated to HydraDB / OS · ⬜ not started. *Last updated: 2026-06-18.*
 
 **Stage: core memory loop + the everyday product surface (sync, connectors, source scoping, enrich, briefing, export, chat) all migrated. What's left is mostly gbrain's heavy ops (mounts, schema/lens packs, identity, cron, advisor).**
 
@@ -79,9 +79,9 @@
 | Enrichment (summary / tags / entities) | 🟡 | `enrich` done; schema/lens packs not |
 | Reports / briefing | ✅ | `hydrabrain briefing [topic]` — synthesized digest over memory |
 | Chat over `think()` | 🟡 | `hydrabrain chat` REPL done; web UI next |
-| Cron / scheduling | ⬜ | — |
-| Identity / access control / trust boundary | ⬜ | — |
-| Advisor / skillpacks | ⬜ | — |
+| Cron / scheduling | ⬜ | covered today by OS cron + `hydrabrain briefing`/`sync`; no built-in daemon |
+| Identity / access control / trust boundary | ◐ | largely **delegated to HydraDB** (API key + tenant/sub_tenant isolation); no per-op trust flags yet |
+| Advisor / skillpacks | ⬜ | gbrain-specific; low north-star value — deferred |
 | Data-migration ETL (real gbrain brain → HydraDB) | — | **out of scope** — this is a capability migration, not a data move |
 
 **Recently shipped:** ✅ bulk incremental `sync` · ✅ web/YouTube connectors (`read`) · ✅ source scoping
