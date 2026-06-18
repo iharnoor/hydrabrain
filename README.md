@@ -78,17 +78,16 @@
 | Export | ✅ | `hydrabrain export <dir>` — dumps (tenant, source) to Markdown + manifest |
 | Enrichment (summary / tags / entities) | 🟡 | `enrich` done; schema/lens packs not |
 | Reports / briefing | ✅ | `hydrabrain briefing [topic]` — synthesized digest over memory |
-| Chat over `think()` | 🟡 | `hydrabrain chat` REPL done; web UI next |
+| Chat over `think()` (REPL + **web UI**) | ✅ | `hydrabrain chat` REPL **and** `hydrabrain web` — zero-dep creator UI (add link/note, cited chat) |
 | Cron / scheduling | ⬜ | covered today by OS cron + `hydrabrain briefing`/`sync`; no built-in daemon |
 | Identity / access control / trust boundary | ◐ | largely **delegated to HydraDB** (API key + tenant/sub_tenant isolation); no per-op trust flags yet |
 | Advisor / skillpacks | ⬜ | gbrain-specific; low north-star value — deferred |
 | Data-migration ETL (real gbrain brain → HydraDB) | — | **out of scope** — this is a capability migration, not a data move |
 
-**Recently shipped:** ✅ bulk incremental `sync` · ✅ web/YouTube connectors (`read`) · ✅ source scoping
-(`--source`) · ✅ enrichment (`enrich`) · ✅ briefing/reports (`briefing`) · ✅ export (`export`) ·
-✅ chat REPL (`chat`) · ✅ MCP expanded to 8 tools.
+**Recently shipped:** ✅ bulk `sync` · ✅ web/YouTube connectors (`read`) · ✅ source scoping (`--source`) ·
+✅ enrichment · ✅ briefing/reports · ✅ export · ✅ chat REPL · ✅ **web UI (`hydrabrain web`)** · ✅ MCP → 8 tools.
 **Next up (in priority order):** (1) decisive LongMemEval `_s` run *(in flight)* · (2) Instagram/podcast
-connectors · (3) web chat UI · (4) full brains/sources resolution + mounts. See [Next steps](#next-steps-toward-the-north-star).
+connectors · (3) full brains/sources resolution + mounts. See [Next steps](#next-steps-toward-the-north-star).
 
 ---
 
@@ -169,6 +168,29 @@ print(brain.think("What car did we buy?").render())
 #  A white Tesla Model 3, bought on May 7, 2022 [1].
 #  Sources: [1] May 7, 2022 - Buying a Car Together, Tesla Model 3: ...
 ```
+
+---
+
+## 🖥️ Web UI — ready out of the box
+
+Built for **creators**: paste a blog post, article, or YouTube URL and it's in your brain;
+then chat with everything you've made and consumed — answers come back **with citations**.
+
+```bash
+hydrabrain web --open        # → http://127.0.0.1:8765, opens your browser
+```
+
+**Zero new dependencies** — served by the Python stdlib (no Flask/FastAPI/uvicorn to install),
+so it runs the instant you install hydrabrain. One self-contained page (no CDNs, works offline
+except for the API calls it makes to your own brain).
+
+- **🔗 Add a link** — articles + YouTube transcripts are fetched, cleaned, and graph-wired automatically.
+- **✏️ Add a note** — drop a thought, quote, or takeaway.
+- **💬 Ask** — cited answers with inline `[n]`, expandable sources, and explicit gap analysis.
+- Live status pill (memory count · brain · source). Scopes to any source with `hydrabrain --source <s> web`.
+
+Endpoints (all JSON, for embedding elsewhere): `GET /api/status` · `POST /api/read` ·
+`POST /api/capture` · `POST /api/think` · `POST /api/search`.
 
 ---
 
@@ -321,8 +343,8 @@ python3 -m bench.longmemeval --data bench/data/longmemeval_s_cleaned.json --limi
 | Enrichment (summary / tags / entities) | `brain.enrich()` / `hydrabrain enrich` (Gemini) |
 | Reports / briefing | `brain.briefing(topic)` / `hydrabrain briefing` |
 | Export / portability | `brain.export(dir)` / `hydrabrain export <dir>` → Markdown + manifest |
-| Chat | `hydrabrain chat` — interactive REPL over `think()` |
-| CLI | `hydrabrain` — 14 cmds: status/capture/ingest/sync/read/search/think/chat/briefing/enrich/graph/export/serve/bench |
+| Chat | `hydrabrain chat` (REPL) **and** `hydrabrain web` (zero-dep web UI for creators) |
+| CLI | `hydrabrain` — 15 cmds: status/capture/ingest/sync/read/search/think/chat/web/briefing/enrich/graph/export/serve/bench |
 
 ### CLI
 
@@ -336,6 +358,7 @@ python3 -m hydrabrain.cli read https://example.com/post   # ingest an article
 python3 -m hydrabrain.cli read https://youtu.be/VIDEO_ID   # ingest a video transcript
 python3 -m hydrabrain.cli search "espresso ratio" -k 5
 python3 -m hydrabrain.cli think  "what coffee setup did I save?"
+python3 -m hydrabrain.cli web --open                # web UI for creators (add link/note + cited chat)
 python3 -m hydrabrain.cli chat                      # interactive REPL over your brain
 python3 -m hydrabrain.cli briefing "coffee"         # synthesized digest on a topic
 python3 -m hydrabrain.cli enrich "..."              # summary + tags + entities
@@ -426,8 +449,10 @@ hydrabrain/        the gbrain-style memory engine on HydraDB
   enrich.py        derive summary + tags + entities (Gemini)
   reports.py       briefing / report synthesis over memory
   export.py        dump a brain (tenant+source) to Markdown files + manifest.json
+  webapp.py        zero-dep web UI server (stdlib http.server) + JSON API
+  web/index.html   the single-page creator app (add link/note, cited chat)
   synth.py         synthesis layer — cited answer + gap analysis (Gemini)
-  cli.py           the hydrabrain CLI (14 cmds)   mcp_server.py   MCP stdio server (8 tools)
+  cli.py           the hydrabrain CLI (15 cmds)   mcp_server.py   MCP stdio server (8 tools)
   config.py        env + recall tuning + brain/source defaults (mode=thinking, alpha=1.0)
 bench/
   dataset.py       19 pages + 19 gold test cases (dependency-free)

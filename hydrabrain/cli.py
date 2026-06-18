@@ -9,6 +9,7 @@ Commands (mirroring gbrain):
   hydrabrain search "<query>"       hybrid vector+graph+BM25 retrieval
   hydrabrain think  "<query>"       synthesized, cited answer + gap analysis
   hydrabrain chat                   interactive REPL over think()
+  hydrabrain web                    launch the web chat UI (zero deps, opens a browser)
   hydrabrain briefing [topic]       synthesized briefing/report over memory
   hydrabrain enrich "<text>"        derive summary + tags + entities
   hydrabrain graph  <source_id>     explore the knowledge graph
@@ -121,6 +122,12 @@ def cmd_chat(args):
         print("brain> " + eng.think(q, k=args.k).render() + "\n")
 
 
+def cmd_web(args):
+    from .webapp import serve
+    serve(tenant_id=args.tenant, source_id=getattr(args, "source", None),
+          host=args.host, port=args.port, open_browser=args.open)
+
+
 def cmd_serve(args):
     from .mcp_server import main as serve_main
 
@@ -188,6 +195,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("chat", help="interactive REPL over think()")
     sp.add_argument("-k", type=int, default=6); sp.set_defaults(func=cmd_chat)
+
+    sp = sub.add_parser("web", help="launch the web chat UI (zero deps)")
+    sp.add_argument("--port", type=int, default=8765)
+    sp.add_argument("--host", default="127.0.0.1")
+    sp.add_argument("--open", action="store_true", help="open the browser automatically")
+    sp.set_defaults(func=cmd_web)
 
     sp = sub.add_parser("serve"); sp.set_defaults(func=cmd_serve)
 
