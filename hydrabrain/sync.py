@@ -25,8 +25,11 @@ from pathlib import Path
 DEFAULT_EXTENSIONS = (".md", ".markdown", ".mdx", ".txt", ".text", ".rst", ".org")
 
 
-def _manifest_path(tenant_id: str) -> Path:
-    return Path.home() / ".hydrabrain" / f"sync-{tenant_id or 'default'}.json"
+def _manifest_path(tenant_id: str, source_id: str = "") -> Path:
+    name = f"sync-{tenant_id or 'default'}"
+    if source_id:
+        name += f"-{source_id}"
+    return Path.home() / ".hydrabrain" / f"{name}.json"
 
 
 def _content_hash(text: str) -> str:
@@ -78,6 +81,7 @@ def sync(
     paths: list[str],
     *,
     tenant_id: str = "",
+    source_id: str = "",
     extensions: tuple[str, ...] = DEFAULT_EXTENSIONS,
     recursive: bool = True,
     force: bool = False,
@@ -87,11 +91,12 @@ def sync(
 ) -> SyncResult:
     """Walk `paths`, ingest changed files into HydraDB, update the local manifest.
 
-    `client` is a HydraDBClient already pointed at the target tenant. `force` ignores
-    the manifest (re-ingests all). `dry_run` reports what *would* happen without writing.
-    `on_progress(done, total, path, action)` is called per file if provided.
+    `client` is a HydraDBClient already pointed at the target tenant. `source_id`
+    scopes writes (and the manifest) to a HydraDB sub_tenant namespace. `force`
+    ignores the manifest (re-ingests all). `dry_run` reports what *would* happen
+    without writing. `on_progress(done, total, path, action)` is called per file.
     """
-    mpath = manifest_path or _manifest_path(tenant_id or getattr(client, "tenant_id", ""))
+    mpath = manifest_path or _manifest_path(tenant_id or getattr(client, "tenant_id", ""), source_id)
     manifest: dict[str, dict] = {}
     if mpath.exists() and not force:
         try:
@@ -122,7 +127,8 @@ def sync(
                     result.bytes_ingested += len(text.encode("utf-8"))
                     action = "would-ingest"
                 else:
-                    client.add_memory(text, title=f.name, infer=True)
+                    client.add_memory(text, title=f.name, infer=True,
+                                      sub_tenant_id=source_id)
                     manifest[key] = {
                         "hash": h,
                         "mtime": f.stat().st_mtime,

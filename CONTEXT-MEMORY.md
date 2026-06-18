@@ -14,13 +14,16 @@ The Python `hydrabrain/` package is the HydraDB-backed reimplementation of gbrai
   - `add_memory(... infer=true)` — writes memories and lets HydraDB build the knowledge graph natively.
   - `recall_preferences(... mode="thinking", alpha=1.0)` — hybrid recall with the thinking recall mode and dense-leaning fusion weight.
   - `graph(...)` — native graph traversal / context expansion.
-- **`engine.py`** — `BrainEngine`, the gbrain-style capability surface backed entirely by HydraDB. Constructs a `HydraDBClient` and exposes `capture` / `ingest_file` / `sync` / `search` / `think` / `graph` (and `status`); every operation routes to HydraDB recall.
+- **`engine.py`** — `BrainEngine`, the gbrain-style capability surface backed entirely by HydraDB. Constructs a `HydraDBClient` and exposes `capture` / `ingest_file` / `sync` / `ingest_url` / `search` / `think` / `enrich` / `briefing` / `export` / `graph` (and `status`); every operation routes to HydraDB. Mirrors gbrain's two axes: **brain** = HydraDB `tenant_id`, **source** = HydraDB `sub_tenant_id` namespace (threaded through every read/write via `self.source_id`).
 - **`sync.py`** — bulk, incremental ingest of directories / globs into HydraDB. Content-hash + local manifest make re-runs idempotent (unchanged files skipped); each new/changed file is captured via `add_memory(infer=True)`. This is the north-star "dump in all my content" path, beyond single-file `ingest`.
 - **`connectors.py`** — web ingestion connectors. `fetch(url)` routes to an article reader (stdlib `HTMLParser` → clean text, no extra deps) or a YouTube transcript fetcher (optional `youtube-transcript-api`), returning normalized text that `BrainEngine.ingest_url` captures into HydraDB. Extensible: add one `fetch_*` function per source.
+- **`enrich.py`** — `enrich(text)` derives a one-line summary + topical tags + entities via Gemini (reusing `synth._genai`'s cached client). HydraDB does the *graph* extraction natively on `infer=True`; this is the human-facing enrichment layer.
+- **`reports.py`** — `briefing(engine, topic?)` produces a synthesized digest: topic-scoped (recall + synthesize) or a whole-brain overview (list + synthesize). Built on HydraDB recall + the existing synthesis layer.
+- **`export.py`** — `export(client, dir, sub_tenant_id)` pages every memory in a (tenant, source) namespace out to Markdown files + a `manifest.json` index. Inverse of `sync`; makes a brain portable/backup-able.
 - **`synth.py`** — produces cited answers. All facts come from HydraDB retrieval; Gemini is only the writer/grounding layer, never a store.
-- **`mcp_server.py`** — MCP server exposing `capture` / `search` / `think` / `graph` / `status`. Header correctly states "Backed entirely by HydraDB."
-- **`cli.py`** — `hydrabrain` CLI (`status` / `capture` / `ingest` / `search` / `think` / `graph` / `serve` / `bench`), backed by HydraDB via `BrainEngine`.
-- **`config.py`** — requires `HYDRADB_API_KEY`; exposes recall tuning via `HYDRA_RECALL_MODE` / `HYDRA_RECALL_ALPHA`. Gemini keys are used only for embedding/chat, not for storage.
+- **`mcp_server.py`** — MCP server exposing 8 tools: `capture` / `read_url` / `search` / `think` / `briefing` / `enrich` / `graph` / `status`. Honors `--tenant`/`--source`. Backed entirely by HydraDB.
+- **`cli.py`** — `hydrabrain` CLI, 14 commands (`status` / `capture` / `ingest` / `sync` / `read` / `search` / `think` / `chat` / `briefing` / `enrich` / `graph` / `export` / `serve` / `bench`), with global `--tenant` (brain) and `--source` (namespace) flags. Backed by HydraDB via `BrainEngine`.
+- **`config.py`** — requires `HYDRADB_API_KEY`; exposes recall tuning via `HYDRA_RECALL_MODE` / `HYDRA_RECALL_ALPHA` and brain/source defaults via `HYDRABRAIN_TENANT` / `HYDRABRAIN_SOURCE`. Gemini keys are used only for embedding/chat, not for storage.
 
 Benchmark entrypoints under `bench/` compare HydraDB against the preserved gbrain stack as a baseline:
 
@@ -37,6 +40,8 @@ Benchmark entrypoints under `bench/` compare HydraDB against the preserved gbrai
 | BM25 + RRF + reranker | HydraDB hybrid recall (one call) |
 | self-wired knowledge graph (hand-rolled extractor) | HydraDB `infer=true` (native graph) |
 | PGLite / Postgres tenant | HydraDB tenant / `sub_tenant_id` |
+| Brain axis (which database) | HydraDB `tenant_id` (`--tenant`) |
+| Source axis (which repo inside it) | HydraDB `sub_tenant_id` (`--source`) |
 | `BrainEngine` (TS contract) | `hydrabrain.engine.BrainEngine` (Python) |
 
 ---

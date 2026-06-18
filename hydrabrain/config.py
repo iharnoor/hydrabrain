@@ -36,6 +36,11 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 # A HydraDB free plan is capped at one tenant; reuse it everywhere.
 DEFAULT_TENANT = os.getenv("HYDRABRAIN_TENANT", "test1")
 
+# Source = which repo inside the brain (gbrain's second axis). Maps to HydraDB's
+# sub_tenant_id namespace. "" is the host/default source. Resolution order in the
+# engine: explicit arg → HYDRABRAIN_SOURCE env → "" (host).
+DEFAULT_SOURCE = os.getenv("HYDRABRAIN_SOURCE", "")
+
 # HydraDB recall tuning. alpha weights dense vs BM25; mode "thinking" does deeper
 # graph traversal. Defaults chosen empirically (see bench/) — alpha=0.8 starves
 # the keyword signal on entity/date queries.

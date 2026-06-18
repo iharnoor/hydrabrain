@@ -8,9 +8,15 @@ Commands (mirroring gbrain):
   hydrabrain read <url...>          ingest a web article / YouTube transcript
   hydrabrain search "<query>"       hybrid vector+graph+BM25 retrieval
   hydrabrain think  "<query>"       synthesized, cited answer + gap analysis
+  hydrabrain chat                   interactive REPL over think()
+  hydrabrain briefing [topic]       synthesized briefing/report over memory
+  hydrabrain enrich "<text>"        derive summary + tags + entities
   hydrabrain graph  <source_id>     explore the knowledge graph
+  hydrabrain export <dir>           dump the brain (tenant+source) to files
   hydrabrain serve                  run the MCP server (stdio)
   hydrabrain bench [...]            run the HydraDB-vs-gbrain-stack benchmark
+
+Global: --tenant <id> (the brain), --source <id> (a namespace inside it).
 """
 
 from __future__ import annotations
@@ -23,7 +29,7 @@ import sys
 def _engine(args):
     from .engine import BrainEngine
 
-    return BrainEngine(tenant_id=args.tenant)
+    return BrainEngine(tenant_id=args.tenant, source_id=getattr(args, "source", None))
 
 
 def cmd_status(args):
@@ -87,10 +93,38 @@ def cmd_graph(args):
     print(json.dumps(_engine(args).graph(args.source_id), indent=2)[:4000])
 
 
+def cmd_enrich(args):
+    print(json.dumps(_engine(args).enrich(args.text), indent=2))
+
+
+def cmd_briefing(args):
+    print(_engine(args).briefing(topic=args.topic, k=args.k).render())
+
+
+def cmd_export(args):
+    print(json.dumps(_engine(args).export(args.out_dir), indent=2))
+
+
+def cmd_chat(args):
+    eng = _engine(args)
+    print("hydrabrain chat — ask your brain. Ctrl-D / 'exit' to quit.\n")
+    while True:
+        try:
+            q = input("you> ").strip()
+        except EOFError:
+            print()
+            break
+        if not q:
+            continue
+        if q.lower() in {"exit", "quit"}:
+            break
+        print("brain> " + eng.think(q, k=args.k).render() + "\n")
+
+
 def cmd_serve(args):
     from .mcp_server import main as serve_main
 
-    serve_main(tenant_id=args.tenant)
+    serve_main(tenant_id=args.tenant, source_id=getattr(args, "source", None))
 
 
 def cmd_bench(args):
@@ -103,7 +137,9 @@ def cmd_bench(args):
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="hydrabrain", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--tenant", default=None, help="HydraDB tenant id")
+    p.add_argument("--tenant", default=None, help="HydraDB tenant id (the brain)")
+    p.add_argument("--source", default=None,
+                   help="source namespace inside the brain (HydraDB sub_tenant); default: host")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sp = sub.add_parser("status"); sp.set_defaults(func=cmd_status)
@@ -139,6 +175,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("graph")
     sp.add_argument("source_id"); sp.set_defaults(func=cmd_graph)
+
+    sp = sub.add_parser("enrich", help="derive summary + tags + entities for text")
+    sp.add_argument("text"); sp.set_defaults(func=cmd_enrich)
+
+    sp = sub.add_parser("briefing", help="synthesized briefing/report over memory")
+    sp.add_argument("topic", nargs="?", default=None, help="optional topic to scope the briefing")
+    sp.add_argument("-k", type=int, default=12); sp.set_defaults(func=cmd_briefing)
+
+    sp = sub.add_parser("export", help="dump the brain (tenant+source) to files")
+    sp.add_argument("out_dir"); sp.set_defaults(func=cmd_export)
+
+    sp = sub.add_parser("chat", help="interactive REPL over think()")
+    sp.add_argument("-k", type=int, default=6); sp.set_defaults(func=cmd_chat)
 
     sp = sub.add_parser("serve"); sp.set_defaults(func=cmd_serve)
 

@@ -58,7 +58,7 @@
 >
 > **Legend:** ✅ done · 🟡 partial · ⬜ not started. *Last updated: 2026-06-18.*
 
-**Stage: core memory loop migrated + benchmarked — the part worth showing off. Operational/product surface still ahead (~6 of gbrain's ~92 ops).**
+**Stage: core memory loop + the everyday product surface (sync, connectors, source scoping, enrich, briefing, export, chat) all migrated. What's left is mostly gbrain's heavy ops (mounts, schema/lens packs, identity, cron, advisor).**
 
 | Area | Status | Notes |
 |---|:---:|---|
@@ -68,25 +68,27 @@
 | Synthesis (cited answers) | ✅ | `think` — Gemini grounding over HydraDB chunks |
 | Graph traversal / explore | 🟡 | `graph_relations` by `source_id` only |
 | Status / list / delete / wipe | ✅ | tenant + memory count, live deletes |
-| CLI (`hydrabrain`) | ✅ | `status/capture/ingest/search/think/graph/serve/bench` |
-| MCP server | 🟡 | 5 tools (gbrain ships 30+) |
+| CLI (`hydrabrain`) | ✅ | 14 commands incl. sync/read/enrich/briefing/export/chat |
+| MCP server | ✅ | 8 tools: capture/read_url/search/think/briefing/enrich/graph/status |
 | Benchmark #1 (19-doc relational) | ✅ | HydraDB 96.5% vs 92.1% full stack |
-| Benchmark #2 (LongMemEval `_s`) | 🟡 | harness ready; decisive run not done (oracle inconclusive) |
-| Sources / brains two-axis routing, mounts | ⬜ | gbrain's core org model — not ported |
-| Bulk sync / import | ✅ | `brain.sync(dir)` / `hydrabrain sync` — incremental, content-hash dedup, manifest-backed |
-| Export | ⬜ | dump a tenant back out to files — not built |
-| Enrichment / extraction / schema+lens packs | ⬜ | — |
-| Cron / scheduling / reports | ⬜ | — |
+| Benchmark #2 (LongMemEval `_s`) | 🟡 | harness ready; decisive run in flight |
+| Bulk sync / import | ✅ | `hydrabrain sync` — incremental, content-hash dedup, manifest-backed |
+| Ingestion connectors (articles / YouTube / IG) | 🟡 | article reader + YouTube transcript (`hydrabrain read <url>`); IG/podcasts next |
+| Source scoping (brains/sources two-axis) | 🟡 | `--source` → HydraDB sub_tenant namespace; full 6-tier resolution + mounts not yet |
+| Export | ✅ | `hydrabrain export <dir>` — dumps (tenant, source) to Markdown + manifest |
+| Enrichment (summary / tags / entities) | 🟡 | `enrich` done; schema/lens packs not |
+| Reports / briefing | ✅ | `hydrabrain briefing [topic]` — synthesized digest over memory |
+| Chat over `think()` | 🟡 | `hydrabrain chat` REPL done; web UI next |
+| Cron / scheduling | ⬜ | — |
 | Identity / access control / trust boundary | ⬜ | — |
 | Advisor / skillpacks | ⬜ | — |
-| Ingestion connectors (articles / YouTube / IG) | 🟡 | web article reader + YouTube transcript shipped (`hydrabrain read <url>`); IG/podcasts next |
-| Chat UI over `think()` | ⬜ | north-star surface |
 | Data-migration ETL (real gbrain brain → HydraDB) | — | **out of scope** — this is a capability migration, not a data move |
 
-**Recently shipped:** ✅ bulk incremental `sync` (dir/glob, content-hash dedup, idempotent) · ✅ web/YouTube
-connectors (`hydrabrain read <url>` → article text / video transcript → `capture`).
-**Next up (in priority order):** (1) decisive LongMemEval `_s` run *(in flight)* · (2) more connectors
-(Instagram saves, podcasts) · (3) enrichment. See [Next steps](#next-steps-toward-the-north-star).
+**Recently shipped:** ✅ bulk incremental `sync` · ✅ web/YouTube connectors (`read`) · ✅ source scoping
+(`--source`) · ✅ enrichment (`enrich`) · ✅ briefing/reports (`briefing`) · ✅ export (`export`) ·
+✅ chat REPL (`chat`) · ✅ MCP expanded to 8 tools.
+**Next up (in priority order):** (1) decisive LongMemEval `_s` run *(in flight)* · (2) Instagram/podcast
+connectors · (3) web chat UI · (4) full brains/sources resolution + mounts. See [Next steps](#next-steps-toward-the-north-star).
 
 ---
 
@@ -311,11 +313,16 @@ python3 -m bench.longmemeval --data bench/data/longmemeval_s_cleaned.json --limi
 | Hybrid search (vector + BM25 + RRF + rerank) | `brain.search()` → HydraDB hybrid recall (`mode=thinking`) |
 | Self-wiring knowledge graph (typed edges) | **native** via `infer=True` — no extraction code |
 | Synthesis layer (cited prose + gap analysis) | `brain.think()` (Gemini grounding over retrieved chunks) |
-| 30+ tool MCP server (stdio) | `hydrabrain serve` (FastMCP: capture/search/think/graph/status) |
+| 30+ tool MCP server (stdio) | `hydrabrain serve` (FastMCP: capture/read_url/search/think/briefing/enrich/graph/status) |
 | Eval framework (LongMemEval-style P@5) | `bench/` — two benchmarks, recall@5 / MRR / LLM-judge / QA acc |
 | Bulk sync (incremental dir ingest) | `brain.sync(paths)` / `hydrabrain sync <dir>` — content-hash dedup, idempotent |
 | Ingestion connectors (consume the web) | `brain.ingest_url(url)` / `hydrabrain read <url>` — article reader + YouTube transcript |
-| CLI (`init/capture/search/think/sync`) | `hydrabrain` CLI (`capture/ingest/sync/search/think/graph/status`) |
+| Brains / sources two-axis routing | `--tenant` (brain) + `--source` (HydraDB sub_tenant namespace) |
+| Enrichment (summary / tags / entities) | `brain.enrich()` / `hydrabrain enrich` (Gemini) |
+| Reports / briefing | `brain.briefing(topic)` / `hydrabrain briefing` |
+| Export / portability | `brain.export(dir)` / `hydrabrain export <dir>` → Markdown + manifest |
+| Chat | `hydrabrain chat` — interactive REPL over `think()` |
+| CLI | `hydrabrain` — 14 cmds: status/capture/ingest/sync/read/search/think/chat/briefing/enrich/graph/export/serve/bench |
 
 ### CLI
 
@@ -329,6 +336,11 @@ python3 -m hydrabrain.cli read https://example.com/post   # ingest an article
 python3 -m hydrabrain.cli read https://youtu.be/VIDEO_ID   # ingest a video transcript
 python3 -m hydrabrain.cli search "espresso ratio" -k 5
 python3 -m hydrabrain.cli think  "what coffee setup did I save?"
+python3 -m hydrabrain.cli chat                      # interactive REPL over your brain
+python3 -m hydrabrain.cli briefing "coffee"         # synthesized digest on a topic
+python3 -m hydrabrain.cli enrich "..."              # summary + tags + entities
+python3 -m hydrabrain.cli export ./brain-backup     # dump brain to Markdown + manifest
+python3 -m hydrabrain.cli --source blog sync ~/posts  # scope to a source namespace
 python3 -m hydrabrain.cli serve         # MCP stdio server
 ```
 
@@ -407,12 +419,16 @@ Both sides get their **best** shot — this is engineered to be *hard* for Hydra
 ```
 hydrabrain/        the gbrain-style memory engine on HydraDB
   client.py        HydraDB REST client (ingest / hybrid recall / graph / delete)
-  engine.py        BrainEngine: capture / ingest_file / sync / ingest_url / search / think / graph
+  engine.py        BrainEngine: capture / ingest_file / sync / ingest_url / search / think /
+                     enrich / briefing / export / graph  (+ brain & source axes)
   sync.py          bulk incremental ingest (dir/glob, content-hash dedup, manifest)
   connectors.py    web connectors: article reader (stdlib HTML→text) + YouTube transcript
+  enrich.py        derive summary + tags + entities (Gemini)
+  reports.py       briefing / report synthesis over memory
+  export.py        dump a brain (tenant+source) to Markdown files + manifest.json
   synth.py         synthesis layer — cited answer + gap analysis (Gemini)
-  cli.py           the hydrabrain CLI       mcp_server.py   MCP stdio server (FastMCP)
-  config.py        env + recall tuning (mode=thinking, alpha=1.0)
+  cli.py           the hydrabrain CLI (14 cmds)   mcp_server.py   MCP stdio server (8 tools)
+  config.py        env + recall tuning + brain/source defaults (mode=thinking, alpha=1.0)
 bench/
   dataset.py       19 pages + 19 gold test cases (dependency-free)
   gbrain_stack.py  faithful gbrain pipeline: dense + BM25 + RRF, NO graph

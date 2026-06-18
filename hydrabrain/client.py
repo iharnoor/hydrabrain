@@ -154,18 +154,34 @@ class HydraDBClient:
         )
 
     # ── list / delete ────────────────────────────────────────
-    def list_content(self, kind: str = "memory", page: int = 1, page_size: int = 50) -> dict:
+    def list_content(self, kind: str = "memory", page: int = 1, page_size: int = 50,
+                     sub_tenant_id: str = "") -> dict:
         # `kind` must be 'memory' or 'knowledge'.
-        return self._post(
-            "/list/data",
-            {"tenant_id": self.tenant_id, "kind": kind, "page": page, "page_size": page_size},
-        )
+        payload = {"tenant_id": self.tenant_id, "kind": kind, "page": page, "page_size": page_size}
+        if sub_tenant_id:
+            payload["sub_tenant_id"] = sub_tenant_id
+        return self._post("/list/data", payload)
 
-    def count(self) -> int:
+    def list_all(self, kind: str = "memory", sub_tenant_id: str = "",
+                 page_size: int = 100, max_pages: int = 100) -> list[dict]:
+        """Page through every memory/knowledge row in (tenant, source)."""
+        rows: list[dict] = []
+        for page in range(1, max_pages + 1):
+            data = self.list_content(kind=kind, page=page, page_size=page_size,
+                                     sub_tenant_id=sub_tenant_id)
+            batch = data.get("user_memories", []) or data.get("sources", []) or []
+            if not batch:
+                break
+            rows.extend(batch)
+            if len(batch) < page_size:
+                break
+        return rows
+
+    def count(self, sub_tenant_id: str = "") -> int:
         total = 0
         for kind in ("memory", "knowledge"):
             try:
-                data = self.list_content(kind=kind)
+                data = self.list_content(kind=kind, sub_tenant_id=sub_tenant_id)
                 total += len(data.get("user_memories", []) or data.get("sources", []) or [])
             except Exception:
                 pass

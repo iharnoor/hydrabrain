@@ -23,10 +23,10 @@ def _eng() -> BrainEngine:
     return _engine
 
 
-def build_server(tenant_id: str | None = None) -> FastMCP:
+def build_server(tenant_id: str | None = None, source_id: str | None = None) -> FastMCP:
     global _engine
-    if tenant_id:
-        _engine = BrainEngine(tenant_id=tenant_id)
+    if tenant_id or source_id:
+        _engine = BrainEngine(tenant_id=tenant_id, source_id=source_id)
 
     mcp = FastMCP("hydrabrain")
 
@@ -35,6 +35,12 @@ def build_server(tenant_id: str | None = None) -> FastMCP:
         """Store a thought or a piece of consumed content (article, video note, idea) into memory."""
         _eng().capture(text, title=title)
         return "captured"
+
+    @mcp.tool()
+    def read_url(url: str) -> str:
+        """Ingest a web article or YouTube video (by URL) into memory; HydraDB wires the graph."""
+        import json
+        return json.dumps(_eng().ingest_url(url))
 
     @mcp.tool()
     def search(query: str, k: int = 5) -> str:
@@ -50,6 +56,17 @@ def build_server(tenant_id: str | None = None) -> FastMCP:
         return _eng().think(query, k=k).render()
 
     @mcp.tool()
+    def briefing(topic: str = "", k: int = 12) -> str:
+        """Produce a synthesized briefing/report over memory, optionally scoped to a topic."""
+        return _eng().briefing(topic=topic or None, k=k).render()
+
+    @mcp.tool()
+    def enrich(text: str) -> str:
+        """Derive a one-line summary, topical tags, and entities for a piece of content."""
+        import json
+        return json.dumps(_eng().enrich(text))
+
+    @mcp.tool()
     def graph(source_id: str) -> str:
         """Explore the self-wired knowledge graph around a given source/memory id."""
         import json
@@ -58,7 +75,7 @@ def build_server(tenant_id: str | None = None) -> FastMCP:
 
     @mcp.tool()
     def status() -> str:
-        """Show the current tenant and number of stored memories."""
+        """Show the current tenant/source and number of stored memories."""
         import json
 
         return json.dumps(_eng().status())
@@ -66,8 +83,8 @@ def build_server(tenant_id: str | None = None) -> FastMCP:
     return mcp
 
 
-def main(tenant_id: str | None = None):
-    build_server(tenant_id).run()
+def main(tenant_id: str | None = None, source_id: str | None = None):
+    build_server(tenant_id, source_id).run()
 
 
 if __name__ == "__main__":
