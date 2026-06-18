@@ -1,7 +1,13 @@
 """Configuration + secret loading for hydrabrain.
 
-Looks for a local .env first, then falls back to the sibling HydraDB project's
-.env so the tool works out of the box on this machine.
+Key resolution order (first hit wins per var, via python-dotenv `override=False`):
+  1. process environment (already-exported vars)
+  2. ./.env                     (repo-local, for development)
+  3. ~/.hydrabrain/.env         (user-level — where onboarding writes keys)
+  4. a legacy sibling path      (back-compat on the original dev machine; a no-op elsewhere)
+
+Onboarding (`hydrabrain init` / the web setup screen) writes #3, so a fresh
+machine becomes turnkey without anyone hand-editing a dotfile.
 """
 
 from __future__ import annotations
@@ -14,9 +20,12 @@ try:
 except Exception:  # pragma: no cover
     load_dotenv = None
 
+USER_ENV = Path.home() / ".hydrabrain" / ".env"
+
 _ENV_CANDIDATES = [
     Path(__file__).resolve().parent.parent / ".env",
-    Path("/Users/harnoorsingh/Developer/HydraDB/.env"),
+    USER_ENV,
+    Path("/Users/harnoorsingh/Developer/HydraDB/.env"),  # legacy dev machine; harmless elsewhere
 ]
 
 
@@ -26,6 +35,17 @@ def _load_env() -> None:
     for path in _ENV_CANDIDATES:
         if path.exists():
             load_dotenv(path, override=False)
+
+
+def reload() -> None:
+    """Re-read the .env files and refresh module-level keys (after onboarding writes them)."""
+    global HYDRADB_API_KEY, GEMINI_API_KEY
+    if load_dotenv is not None:
+        for path in _ENV_CANDIDATES:
+            if path.exists():
+                load_dotenv(path, override=True)
+    HYDRADB_API_KEY = os.getenv("HYDRADB_API_KEY", "")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 
 _load_env()
@@ -51,12 +71,55 @@ HYDRA_RECALL_ALPHA = float(os.getenv("HYDRA_RECALL_ALPHA", "1.0"))
 GEMINI_CHAT_MODEL = os.getenv("HYDRABRAIN_CHAT_MODEL", "gemini-2.5-flash")
 GEMINI_EMBED_MODEL = os.getenv("HYDRABRAIN_EMBED_MODEL", "gemini-embedding-001")
 
+# Where to get free keys (shown in onboarding "free mode").
+HYDRADB_SIGNUP_URL = "https://hydradb.com"
+GEMINI_SIGNUP_URL = "https://aistudio.google.com/apikey"
+
+
+def have_hydradb() -> bool:
+    return bool(os.getenv("HYDRADB_API_KEY", ""))
+
+
+def have_gemini() -> bool:
+    return bool(os.getenv("GEMINI_API_KEY", ""))
+
+
+def needs_onboarding() -> bool:
+    """True until the one hard requirement — a HydraDB key — is present."""
+    return not have_hydradb()
+
+
+def write_keys(hydradb_key: str | None = None, gemini_key: str | None = None) -> Path:
+    """Persist keys to ~/.hydrabrain/.env (merging with any existing values) and reload."""
+    existing: dict[str, str] = {}
+    if USER_ENV.exists():
+        for line in USER_ENV.read_text().splitlines():
+            if "=" in line and not line.strip().startswith("#"):
+                k, _, v = line.partition("=")
+                existing[k.strip()] = v.strip()
+    if hydradb_key:
+        existing["HYDRADB_API_KEY"] = hydradb_key.strip()
+    if gemini_key:
+        existing["GEMINI_API_KEY"] = gemini_key.strip()
+    USER_ENV.parent.mkdir(parents=True, exist_ok=True)
+    body = "".join(f"{k}={v}\n" for k, v in existing.items())
+    USER_ENV.write_text(body)
+    try:
+        USER_ENV.chmod(0o600)  # contains secrets
+    except Exception:
+        pass
+    # make the new keys live in this process immediately
+    for k, v in existing.items():
+        os.environ[k] = v
+    reload()
+    return USER_ENV
+
 
 def require(key: str) -> str:
     val = os.getenv(key, "")
     if not val:
         raise RuntimeError(
-            f"Missing required env var {key}. Add it to .env "
-            f"(checked: {', '.join(str(p) for p in _ENV_CANDIDATES)})."
+            f"Missing required env var {key}. Run `hydrabrain init` (or `hydrabrain web`) "
+            f"to set it up, or add it to {USER_ENV}."
         )
     return val

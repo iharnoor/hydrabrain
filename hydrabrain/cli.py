@@ -1,6 +1,7 @@
 """hydrabrain CLI — a gbrain-style memory CLI backed by HydraDB.
 
 Commands (mirroring gbrain):
+  hydrabrain init                   one-time setup: collect & save your API keys
   hydrabrain status                 show tenant + memory count
   hydrabrain capture "<text>"       ingest a thought / consumed content
   hydrabrain ingest <file...>       ingest text/markdown files
@@ -31,6 +32,35 @@ def _engine(args):
     from .engine import BrainEngine
 
     return BrainEngine(tenant_id=args.tenant, source_id=getattr(args, "source", None))
+
+
+def cmd_init(args):
+    from . import config, onboarding
+    print("\n  🧠 HydraBrain setup\n")
+    if not config.needs_onboarding() and not args.force:
+        print(f"  Already set up (keys in {config.USER_ENV}). Re-run with --force to change.\n")
+        return
+    print("  How do you want to start?")
+    print("    [1] Free mode  — just a free HydraDB key (capture, links, search)")
+    print("    [2] Full       — HydraDB + a free Gemini key (adds cited answers)\n")
+    mode = (input("  Choose [1/2] (1): ").strip() or "1")
+
+    print(f"\n  Get a free HydraDB key: {config.HYDRADB_SIGNUP_URL}")
+    hydra = input("  HydraDB API key: ").strip()
+    gemini = ""
+    if mode == "2":
+        print(f"\n  Get a free Gemini key: {config.GEMINI_SIGNUP_URL}")
+        gemini = input("  Gemini API key (Enter to skip): ").strip()
+
+    print("\n  validating…")
+    res = onboarding.apply(hydra, gemini)
+    if res.get("ok"):
+        extra = "cited answers ON" if res.get("gemini") else "free mode (add Gemini later for cited answers)"
+        print(f"  ✅ saved to {res['path']} — {extra}\n")
+        print("  Try:  hydrabrain web --open   or   hydrabrain capture \"my first memory\"\n")
+    else:
+        print(f"  ❌ {res.get('message')}\n")
+        raise SystemExit(1)
 
 
 def cmd_status(args):
@@ -149,6 +179,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="source namespace inside the brain (HydraDB sub_tenant); default: host")
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    sp = sub.add_parser("init", help="one-time setup: collect & save your API keys")
+    sp.add_argument("--force", action="store_true", help="re-run setup even if keys exist")
+    sp.set_defaults(func=cmd_init)
+
     sp = sub.add_parser("status"); sp.set_defaults(func=cmd_status)
 
     sp = sub.add_parser("capture")
@@ -211,8 +245,18 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+# Commands that work (or guide the user) without keys already configured.
+_NO_KEY_OK = {"init", "web"}
+
+
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    from . import config
+    if config.needs_onboarding() and args.cmd not in _NO_KEY_OK:
+        print("👋 HydraBrain isn't set up yet.\n"
+              "   Run `hydrabrain init` for a 30-second setup (free mode needs just a HydraDB key),\n"
+              "   or `hydrabrain web` for the guided browser setup.")
+        sys.exit(1)
     try:
         args.func(args)
     except KeyboardInterrupt:

@@ -65,6 +65,17 @@ def synthesize(question: str, chunks: list[Chunk], model: str | None = None) -> 
     if not chunks:
         return Answer(text="I have no memories relevant to that yet.", gaps="entire question")
 
+    # Free mode: no Gemini key → skip synthesis, return the top matching memories
+    # directly so capture/search/read are fully usable without a paid/LLM key.
+    if not config.have_gemini():
+        top = chunks[0].text.strip().replace("\n", " ")
+        return Answer(
+            text=(f"Here's the most relevant memory I found [1]:\n\n{top[:400]}\n\n"
+                  "_(Add a Gemini key via `hydrabrain init` to get synthesized, cited answers.)_"),
+            citations=chunks,
+            gaps="",
+        )
+
     context = "\n\n".join(
         f"[{i}] {c.text.strip()}" for i, c in enumerate(chunks, 1)
     )

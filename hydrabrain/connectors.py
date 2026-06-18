@@ -4,9 +4,11 @@ The north-star goal is "dump in *all* the content I take in." `capture`/`sync` c
 text and files; connectors cover the web. Each connector fetches a source, extracts
 clean text, and hands it to `add_memory(infer=True)` so HydraDB wires the graph.
 
-Dependency-light by design:
+Dependency-light by design, all free / no-auth:
   • Article / web pages — `requests` + a stdlib HTML→text extractor (no extra deps).
+  • Tweets — the free Twitter oEmbed endpoint (no API key, no auth).
   • YouTube transcripts — optional `youtube_transcript_api`; if absent, a clear message.
+  • LinkedIn — best-effort via the article reader; login-walled posts get a "paste it" hint.
 
 Add a connector by writing one `fetch_*(url) -> Source` function and routing it in
 `fetch(url)`. Everything downstream (`BrainEngine.ingest_url`, the CLI `read` command)
@@ -87,12 +89,39 @@ def html_to_text(html: str) -> tuple[str, str]:
 
 
 def fetch_article(url: str) -> Source:
-    resp = requests.get(url, headers={"User-Agent": _UA}, timeout=(10, 30))
+    resp = requests.get(url, headers={"User-Agent": _UA}, timeout=(10, 30),
+                        allow_redirects=True)
     resp.raise_for_status()
     title, text = html_to_text(resp.text)
     if not text.strip():
+        host = (urlparse(url).hostname or "").lower()
+        if "linkedin.com" in host:
+            raise ValueError("LinkedIn posts usually require a login, so the public page has no "
+                             "readable text. Copy the post text and use 'Add a note' instead.")
         raise ValueError(f"no readable text extracted from {url}")
     return Source(title=title or url, text=text, url=url, kind="article")
+
+
+def is_tweet(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return ("twitter.com" in host or host == "x.com" or host.endswith(".x.com")) and "/status/" in url
+
+
+def fetch_tweet(url: str) -> Source:
+    """Fetch a tweet via the free, no-auth Twitter oEmbed endpoint."""
+    resp = requests.get(
+        "https://publish.twitter.com/oembed",
+        params={"url": url, "omit_script": "1", "dnt": "true"},
+        headers={"User-Agent": _UA}, timeout=(10, 30),
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    _, text = html_to_text(data.get("html", ""))
+    author = data.get("author_name", "")
+    if not text.strip():
+        raise ValueError(f"no text found for tweet {url}")
+    body = f"Tweet by {author}: {text}" if author else f"Tweet: {text}"
+    return Source(title=f"Tweet by {author}" if author else "Tweet", text=body, url=url, kind="tweet")
 
 
 def _youtube_id(url: str) -> str:
@@ -130,4 +159,8 @@ def fetch_youtube(url: str) -> Source:
 
 def fetch(url: str) -> Source:
     """Route a URL to the right connector and return normalized content."""
-    return fetch_youtube(url) if is_youtube(url) else fetch_article(url)
+    if is_youtube(url):
+        return fetch_youtube(url)
+    if is_tweet(url):
+        return fetch_tweet(url)
+    return fetch_article(url)

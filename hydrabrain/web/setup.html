@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>HydraBrain — setup</title>
+<style>
+  :root {
+    --bg:#0a0a0f; --panel:#13131c; --panel-2:#181826; --line:#262636;
+    --ink:#e8e8f0; --muted:#9a9ab0; --faint:#6b6b85;
+    --accent:#7c3aed; --accent-2:#a855f7; --accent-soft:rgba(124,58,237,.14);
+    --good:#16a34a; --bad:#f87171; --radius:18px;
+    --grad:linear-gradient(135deg,#7c3aed,#a855f7 60%,#c084fc);
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; }
+  body {
+    background: radial-gradient(1200px 600px at 80% -10%, rgba(124,58,237,.18), transparent 60%),
+                radial-gradient(900px 500px at -10% 110%, rgba(168,85,247,.12), transparent 55%), var(--bg);
+    color:var(--ink); font:15px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Inter,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; display:grid; place-items:center; padding:24px;
+  }
+  .card { width:100%; max-width:520px; background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line); border-radius:var(--radius); padding:26px; box-shadow:0 24px 80px rgba(0,0,0,.5); }
+  .head { display:flex; align-items:center; gap:13px; margin-bottom:6px; }
+  .logo { width:40px; height:40px; border-radius:12px; background:var(--grad); display:grid; place-items:center;
+    box-shadow:0 6px 22px rgba(124,58,237,.45); flex:none; }
+  .logo svg { width:22px; height:22px; }
+  h1 { font-size:20px; margin:0; letter-spacing:-.3px; }
+  .sub { color:var(--muted); font-size:13px; margin:2px 0 18px; }
+
+  .seg { display:flex; gap:6px; background:#0e0e16; border:1px solid var(--line); border-radius:12px; padding:5px; margin-bottom:18px; }
+  .seg button { flex:1; font:inherit; font-size:13.5px; color:var(--muted); background:transparent; border:0;
+    padding:9px; border-radius:8px; cursor:pointer; transition:.15s; }
+  .seg button.on { color:#fff; background:var(--accent-soft); box-shadow:inset 0 0 0 1px rgba(124,58,237,.45); }
+
+  label { display:block; font-size:13px; color:var(--ink); margin:14px 0 6px; font-weight:600; }
+  label .opt { color:var(--faint); font-weight:400; }
+  .help { font-size:12px; color:var(--muted); margin:6px 0 0; }
+  .help a { color:var(--accent-2); }
+  input { width:100%; background:#0e0e16; border:1px solid var(--line); color:var(--ink);
+    border-radius:11px; padding:12px 13px; font:inherit; outline:none; }
+  input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  input.bad { border-color:var(--bad); }
+
+  .free-note { font-size:12.5px; color:#d8b4fe; background:rgba(168,85,247,.08);
+    border-left:2px solid var(--accent); padding:9px 12px; border-radius:0 8px 8px 0; margin:2px 0 6px; display:none; }
+  body.mode-free .free-note { display:block; }
+
+  .go { width:100%; margin-top:22px; background:var(--grad); color:#fff; border:0; border-radius:12px;
+    padding:13px; font-weight:700; font-size:15px; cursor:pointer; transition:transform .08s,filter .15s; }
+  .go:hover { filter:brightness(1.08); } .go:active { transform:translateY(1px); }
+  .go:disabled { opacity:.55; cursor:default; filter:none; }
+  .msg { margin-top:12px; font-size:13px; min-height:18px; }
+  .msg.err { color:var(--bad); } .msg.ok { color:var(--good); }
+  .foot { margin-top:16px; font-size:11.5px; color:var(--faint); text-align:center; }
+</style>
+</head>
+<body class="mode-free">
+<div class="card">
+  <div class="head">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="2.4"/><circle cx="5" cy="17" r="2.4"/><circle cx="19" cy="17" r="2.4"/>
+        <path d="M12 7.4v3M10.6 12.4 6.4 15.3M13.4 12.4l4.2 2.9"/>
+      </svg>
+    </div>
+    <div><h1>Welcome to HydraBrain</h1></div>
+  </div>
+  <p class="sub">One quick step. Pick how you want to start — then chat with everything you make &amp; consume.</p>
+
+  <div class="seg" role="tablist">
+    <button id="m-free" class="on" data-mode="free">🆓 Free mode</button>
+    <button id="m-keys" data-mode="keys">🔑 I have my keys</button>
+  </div>
+
+  <div class="free-note">
+    Free mode runs entirely on free tiers. You only need a <b>HydraDB</b> key to capture, add links,
+    and search. Add a <b>Gemini</b> key (also free) any time to unlock synthesized, cited answers.
+  </div>
+
+  <label for="hydra">HydraDB API key <span class="opt">· required</span></label>
+  <input id="hydra" type="text" placeholder="hdb_…" autocomplete="off" spellcheck="false" />
+  <p class="help">Stores your memories &amp; the knowledge graph. <a id="hydra-link" href="#" target="_blank" rel="noopener">Get a free key →</a></p>
+
+  <label for="gemini">Gemini API key <span class="opt">· optional — enables cited answers</span></label>
+  <input id="gemini" type="text" placeholder="AIza…" autocomplete="off" spellcheck="false" />
+  <p class="help">Used only to write answers; never stores your data. <a id="gemini-link" href="#" target="_blank" rel="noopener">Get a free key →</a></p>
+
+  <button class="go" id="save">Validate &amp; start</button>
+  <div class="msg" id="msg"></div>
+  <div class="foot">Keys are saved locally to <code>~/.hydrabrain/.env</code> (chmod 600). Never uploaded anywhere but the APIs you chose.</div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let signup = { hydradb: 'https://hydradb.com', gemini: 'https://aistudio.google.com/apikey' };
+
+fetch('/api/needs-setup').then(r=>r.json()).then(d=>{
+  signup.hydradb = d.hydradb_signup || signup.hydradb;
+  signup.gemini = d.gemini_signup || signup.gemini;
+  $('#hydra-link').href = signup.hydradb;
+  $('#gemini-link').href = signup.gemini;
+}).catch(()=>{});
+
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.seg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  document.body.className = b.dataset.mode === 'free' ? 'mode-free' : 'mode-keys';
+});
+
+async function save(){
+  const hydra = $('#hydra').value.trim(), gemini = $('#gemini').value.trim();
+  const msg = $('#msg'); $('#hydra').classList.remove('bad'); $('#gemini').classList.remove('bad');
+  if(!hydra){ $('#hydra').classList.add('bad'); msg.className='msg err'; msg.textContent='A HydraDB key is required.'; return; }
+  const btn = $('#save'); btn.disabled=true; btn.textContent='Validating…';
+  msg.className='msg'; msg.textContent='';
+  try{
+    const r = await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({hydradb_key:hydra, gemini_key:gemini})});
+    const d = await r.json();
+    if(d.ok){
+      msg.className='msg ok';
+      msg.textContent = d.gemini ? 'All set! Opening your brain…' : 'Saved! Free mode ready — opening your brain…';
+      setTimeout(()=>location.href='/', 700);
+    } else {
+      msg.className='msg err'; msg.textContent = d.message || 'Setup failed.';
+      if(d.field==='hydradb') $('#hydra').classList.add('bad');
+      if(d.field==='gemini') $('#gemini').classList.add('bad');
+      btn.disabled=false; btn.textContent='Validate & start';
+    }
+  }catch(e){ msg.className='msg err'; msg.textContent=String(e); btn.disabled=false; btn.textContent='Validate & start'; }
+}
+$('#save').onclick = save;
+$('#gemini').addEventListener('keydown',e=>{if(e.key==='Enter')save();});
+$('#hydra').focus();
+</script>
+</body>
+</html>

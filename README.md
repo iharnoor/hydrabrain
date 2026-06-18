@@ -73,36 +73,24 @@
 | Benchmark #1 (19-doc relational) | ✅ | HydraDB 96.5% vs 92.1% full stack |
 | Benchmark #2 (LongMemEval `_s`) | 🟡 | harness ready; decisive run in flight |
 | Bulk sync / import | ✅ | `hydrabrain sync` — incremental, content-hash dedup, manifest-backed |
-| Ingestion connectors (articles / YouTube / IG) | 🟡 | article reader + YouTube transcript (`hydrabrain read <url>`); IG/podcasts next |
+| Ingestion connectors (articles / tweets / YouTube) | 🟡 | article reader + **tweets (free oEmbed)** + YouTube transcript (`hydrabrain read <url>`); LinkedIn best-effort; IG/podcasts next |
 | Source scoping (brains/sources two-axis) | 🟡 | `--source` → HydraDB sub_tenant namespace; full 6-tier resolution + mounts not yet |
 | Export | ✅ | `hydrabrain export <dir>` — dumps (tenant, source) to Markdown + manifest |
 | Enrichment (summary / tags / entities) | 🟡 | `enrich` done; schema/lens packs not |
 | Reports / briefing | ✅ | `hydrabrain briefing [topic]` — synthesized digest over memory |
 | Chat over `think()` (REPL + **web UI**) | ✅ | `hydrabrain chat` REPL **and** `hydrabrain web` — zero-dep creator UI (add link/note, cited chat) |
-| **Onboarding / first-run key setup** | ⬜ | **TODO** — collect `HYDRADB_API_KEY` + `GEMINI_API_KEY` on first run (web setup screen + `hydrabrain init` CLI fallback), write `~/.hydrabrain/.env`, validate. Design below. |
+| **Onboarding / first-run key setup** | ✅ | `hydrabrain init` + web setup screen, **Free mode vs. keys** choice, writes `~/.hydrabrain/.env` (chmod 600), validates HydraDB live, first-run guard |
 | Cron / scheduling | ⬜ | covered today by OS cron + `hydrabrain briefing`/`sync`; no built-in daemon |
 | Identity / access control / trust boundary | ◐ | largely **delegated to HydraDB** (API key + tenant/sub_tenant isolation); no per-op trust flags yet |
 | Advisor / skillpacks | ⬜ | gbrain-specific; low north-star value — deferred |
 | Data-migration ETL (real gbrain brain → HydraDB) | — | **out of scope** — this is a capability migration, not a data move |
 
-**Recently shipped:** ✅ bulk `sync` · ✅ web/YouTube connectors (`read`) · ✅ source scoping (`--source`) ·
-✅ enrichment · ✅ briefing/reports · ✅ export · ✅ chat REPL · ✅ **web UI (`hydrabrain web`)** · ✅ MCP → 8 tools.
-**Next up (in priority order):** (1) **onboarding / first-run key setup** (TODO, design below) ·
-(2) decisive LongMemEval `_s` run *(harness needs a hard Gemini timeout — last run wedged on a hung
-Gemini socket for hours)* · (3) Instagram/podcast connectors · (4) full brains/sources resolution + mounts.
-See [Next steps](#next-steps-toward-the-north-star).
-
-> **🚀 TODO — zero-friction onboarding (collect keys on first run).**
-> Today you hand-create a `.env`. Planned, so a fresh Mac mini install is turnkey:
-> - **Web-first (recommended).** `hydrabrain web` with no keys serves a **setup card** (same
->   design language): two fields (HydraDB key, Gemini key) with inline *"Get a key →"* links, a
->   **yes/no toggle** *"Enable YouTube ingestion? (installs `youtube-transcript-api`)"*, a
->   **Validate & save** button that test-pings both APIs, then drops you straight into the chat.
-> - **CLI fallback** for headless/SSH: `hydrabrain init` — prompts for each key (masked input),
->   `[y/N]` "open the signup page?", writes the file, validates.
-> - **Storage:** `~/.hydrabrain/.env` (user-level, never committed) — checked before the repo `.env`.
-> - **First-run guard:** any command with missing keys points at `hydrabrain init` / `hydrabrain web`
->   instead of throwing a stack trace.
+**Recently shipped:** ✅ **zero-friction onboarding** (`init` + web setup, Free-mode vs keys) · ✅ **free
+tweet connector** (no-auth oEmbed) · ✅ bulk `sync` · ✅ web/YouTube connectors · ✅ source scoping ·
+✅ enrichment · ✅ briefing · ✅ export · ✅ chat REPL · ✅ **web UI** · ✅ MCP → 8 tools.
+**Next up (in priority order):** (1) decisive LongMemEval `_s` run *(harness needs a hard Gemini timeout —
+last run wedged on a hung Gemini socket for hours)* · (2) Instagram/podcast connectors ·
+(3) full brains/sources resolution + mounts. See [Next steps](#next-steps-toward-the-north-star).
 
 ---
 
@@ -194,6 +182,11 @@ then chat with everything you've made and consumed — answers come back **with 
 ```bash
 hydrabrain web --open        # → http://127.0.0.1:8765, opens your browser
 ```
+
+**First run is guided.** No keys yet? `hydrabrain web` serves a **setup screen** — pick
+**🆓 Free mode** (just a free HydraDB key: capture, add links, search) or **🔑 I have my keys**
+(add a free Gemini key too for synthesized, cited answers). Keys save to `~/.hydrabrain/.env`
+(chmod 600). Prefer the terminal? `hydrabrain init` does the same in ~30 seconds.
 
 **Zero new dependencies** — served by the Python stdlib (no Flask/FastAPI/uvicorn to install),
 so it runs the instant you install hydrabrain. One self-contained page (no CDNs, works offline
@@ -353,17 +346,19 @@ python3 -m bench.longmemeval --data bench/data/longmemeval_s_cleaned.json --limi
 | 30+ tool MCP server (stdio) | `hydrabrain serve` (FastMCP: capture/read_url/search/think/briefing/enrich/graph/status) |
 | Eval framework (LongMemEval-style P@5) | `bench/` — two benchmarks, recall@5 / MRR / LLM-judge / QA acc |
 | Bulk sync (incremental dir ingest) | `brain.sync(paths)` / `hydrabrain sync <dir>` — content-hash dedup, idempotent |
-| Ingestion connectors (consume the web) | `brain.ingest_url(url)` / `hydrabrain read <url>` — article reader + YouTube transcript |
+| Onboarding (`gbrain init`) | `hydrabrain init` / web setup screen — Free-mode vs keys, writes `~/.hydrabrain/.env` |
+| Ingestion connectors (consume the web) | `brain.ingest_url(url)` / `hydrabrain read <url>` — articles + tweets (free oEmbed) + YouTube transcripts |
 | Brains / sources two-axis routing | `--tenant` (brain) + `--source` (HydraDB sub_tenant namespace) |
 | Enrichment (summary / tags / entities) | `brain.enrich()` / `hydrabrain enrich` (Gemini) |
 | Reports / briefing | `brain.briefing(topic)` / `hydrabrain briefing` |
 | Export / portability | `brain.export(dir)` / `hydrabrain export <dir>` → Markdown + manifest |
 | Chat | `hydrabrain chat` (REPL) **and** `hydrabrain web` (zero-dep web UI for creators) |
-| CLI | `hydrabrain` — 15 cmds: status/capture/ingest/sync/read/search/think/chat/web/briefing/enrich/graph/export/serve/bench |
+| CLI | `hydrabrain` — 16 cmds: init/status/capture/ingest/sync/read/search/think/chat/web/briefing/enrich/graph/export/serve/bench |
 
 ### CLI
 
 ```bash
+python3 -m hydrabrain.cli init                     # one-time setup (Free mode or paste keys)
 python3 -m hydrabrain.cli status
 python3 -m hydrabrain.cli capture "Saved a YouTube video on espresso ratios: 1:2 in 28s."
 python3 -m hydrabrain.cli ingest notes/*.md
@@ -371,6 +366,7 @@ python3 -m hydrabrain.cli sync ~/notes            # bulk, incremental — skips 
 python3 -m hydrabrain.cli sync ~/notes --dry-run  # preview what would ingest
 python3 -m hydrabrain.cli read https://example.com/post   # ingest an article
 python3 -m hydrabrain.cli read https://youtu.be/VIDEO_ID   # ingest a video transcript
+python3 -m hydrabrain.cli read https://x.com/user/status/123  # ingest a tweet (free, no auth)
 python3 -m hydrabrain.cli search "espresso ratio" -k 5
 python3 -m hydrabrain.cli think  "what coffee setup did I save?"
 python3 -m hydrabrain.cli web --open                # web UI for creators (add link/note + cited chat)
@@ -460,12 +456,14 @@ hydrabrain/        the gbrain-style memory engine on HydraDB
   engine.py        BrainEngine: capture / ingest_file / sync / ingest_url / search / think /
                      enrich / briefing / export / graph  (+ brain & source axes)
   sync.py          bulk incremental ingest (dir/glob, content-hash dedup, manifest)
-  connectors.py    web connectors: article reader (stdlib HTML→text) + YouTube transcript
+  connectors.py    web connectors: articles (stdlib HTML→text) + tweets (oEmbed) + YouTube
+  onboarding.py    first-run key setup (validate + write ~/.hydrabrain/.env)
   enrich.py        derive summary + tags + entities (Gemini)
   reports.py       briefing / report synthesis over memory
   export.py        dump a brain (tenant+source) to Markdown files + manifest.json
   webapp.py        zero-dep web UI server (stdlib http.server) + JSON API
   web/index.html   the single-page creator app (add link/note, cited chat)
+  web/setup.html   first-run setup screen (Free-mode vs keys)
   synth.py         synthesis layer — cited answer + gap analysis (Gemini)
   cli.py           the hydrabrain CLI (15 cmds)   mcp_server.py   MCP stdio server (8 tools)
   config.py        env + recall tuning + brain/source defaults (mode=thinking, alpha=1.0)
