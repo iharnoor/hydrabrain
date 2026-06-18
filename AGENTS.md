@@ -1,3 +1,5 @@
+> **Fork note — context memory = [HydraDB](https://hydradb.com).** This repository is a fork of gbrain. The upstream gbrain source uses pgvector/PGLite as its memory store; for work in **this** fork the context-memory layer is **HydraDB** — see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md) and the Python `hydrabrain/` package. Do not assume pgvector/PGLite for new work here.
+
 # Agents working on GBrain
 
 This is your install + operating protocol. Claude Code reads `./CLAUDE.md` automatically.

@@ -2,6 +2,8 @@
 > gbrain's original TypeScript source is preserved here unchanged — see [`README.upstream.md`](README.upstream.md), `src/`, `skills/`, etc.
 > The **`hydrabrain/`** and **`bench/`** directories add an *independent Python reimplementation on [HydraDB](https://hydradb.com)* plus head-to-head benchmarks. They share no code with gbrain's TS source — this fork exists to carry the lineage and run the comparison side-by-side. The document below describes that reimplementation.
 
+**Context memory:** this project runs entirely on [HydraDB](https://hydradb.com) — see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md).
+
 ---
 
 <div align="center">

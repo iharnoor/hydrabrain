@@ -1,3 +1,5 @@
+> **Fork note — context memory = [HydraDB](https://hydradb.com).** This repository is a fork of gbrain. The upstream gbrain source uses pgvector/PGLite as its memory store; for work in **this** fork the context-memory layer is **HydraDB** — see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md) and the Python `hydrabrain/` package. Do not assume pgvector/PGLite for new work here.
+
 # GBrain
 
 **Search gives you raw pages. GBrain gives you the answer.** It's the brain layer your AI agent has been missing — the only one that does synthesis, graph traversal, and gap analysis in one box. Run a full autonomous agent on top of it, or just wire it into Claude Code or Codex as a supercharged retrieval layer in one command; either way your coding agent stops being amnesiac about everything that isn't code.
