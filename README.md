@@ -79,6 +79,7 @@
 | Enrichment (summary / tags / entities) | 🟡 | `enrich` done; schema/lens packs not |
 | Reports / briefing | ✅ | `hydrabrain briefing [topic]` — synthesized digest over memory |
 | Chat over `think()` (REPL + **web UI**) | ✅ | `hydrabrain chat` REPL **and** `hydrabrain web` — zero-dep creator UI (add link/note, cited chat) |
+| **Onboarding / first-run key setup** | ⬜ | **TODO** — collect `HYDRADB_API_KEY` + `GEMINI_API_KEY` on first run (web setup screen + `hydrabrain init` CLI fallback), write `~/.hydrabrain/.env`, validate. Design below. |
 | Cron / scheduling | ⬜ | covered today by OS cron + `hydrabrain briefing`/`sync`; no built-in daemon |
 | Identity / access control / trust boundary | ◐ | largely **delegated to HydraDB** (API key + tenant/sub_tenant isolation); no per-op trust flags yet |
 | Advisor / skillpacks | ⬜ | gbrain-specific; low north-star value — deferred |
@@ -86,8 +87,22 @@
 
 **Recently shipped:** ✅ bulk `sync` · ✅ web/YouTube connectors (`read`) · ✅ source scoping (`--source`) ·
 ✅ enrichment · ✅ briefing/reports · ✅ export · ✅ chat REPL · ✅ **web UI (`hydrabrain web`)** · ✅ MCP → 8 tools.
-**Next up (in priority order):** (1) decisive LongMemEval `_s` run *(in flight)* · (2) Instagram/podcast
-connectors · (3) full brains/sources resolution + mounts. See [Next steps](#next-steps-toward-the-north-star).
+**Next up (in priority order):** (1) **onboarding / first-run key setup** (TODO, design below) ·
+(2) decisive LongMemEval `_s` run *(harness needs a hard Gemini timeout — last run wedged on a hung
+Gemini socket for hours)* · (3) Instagram/podcast connectors · (4) full brains/sources resolution + mounts.
+See [Next steps](#next-steps-toward-the-north-star).
+
+> **🚀 TODO — zero-friction onboarding (collect keys on first run).**
+> Today you hand-create a `.env`. Planned, so a fresh Mac mini install is turnkey:
+> - **Web-first (recommended).** `hydrabrain web` with no keys serves a **setup card** (same
+>   design language): two fields (HydraDB key, Gemini key) with inline *"Get a key →"* links, a
+>   **yes/no toggle** *"Enable YouTube ingestion? (installs `youtube-transcript-api`)"*, a
+>   **Validate & save** button that test-pings both APIs, then drops you straight into the chat.
+> - **CLI fallback** for headless/SSH: `hydrabrain init` — prompts for each key (masked input),
+>   `[y/N]` "open the signup page?", writes the file, validates.
+> - **Storage:** `~/.hydrabrain/.env` (user-level, never committed) — checked before the repo `.env`.
+> - **First-run guard:** any command with missing keys points at `hydrabrain init` / `hydrabrain web`
+>   instead of throwing a stack trace.
 
 ---
 
