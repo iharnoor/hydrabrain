@@ -70,8 +70,9 @@
 | Status / list / delete / wipe | ✅ | tenant + memory count, live deletes |
 | CLI (`hydrabrain`) | ✅ | 14 commands incl. sync/read/enrich/briefing/export/chat |
 | MCP server | ✅ | 8 tools: capture/read_url/search/think/briefing/enrich/graph/status |
-| Benchmark #1 (19-doc relational) | ✅ | HydraDB 96.5% vs 92.1% full stack |
-| Benchmark #2 (LongMemEval `_s`) | 🟡 | harness ready; decisive run in flight |
+| Benchmark #1 (19-doc relational) | ⚠️ | **opponent had gbrain's graph removed** — proves "graph > no-graph," NOT "HydraDB > gbrain". Being superseded by v2. |
+| **Benchmark v2 — real gbrain head-to-head** | 🟡 | Phase 0 (hard Gemini timeout + live progress) ✅ · real gbrain runs from source (graph ON) ✅ · shared-corpus P@5/R@5/MRR + latency/cost next |
+| Benchmark #2 (LongMemEval `_s`) | 🟡 | harness fixed (no more wedge); decisive run pending |
 | Bulk sync / import | ✅ | `hydrabrain sync` — incremental, content-hash dedup, manifest-backed |
 | Ingestion connectors (articles / tweets / YouTube) | 🟡 | article reader + **tweets (free oEmbed)** + YouTube transcript (`hydrabrain read <url>`); LinkedIn best-effort; IG/podcasts next |
 | Source scoping (brains/sources two-axis) | 🟡 | `--source` → HydraDB sub_tenant namespace; full 6-tier resolution + mounts not yet |
@@ -96,7 +97,9 @@ last run wedged on a hung Gemini socket for hours)* · (2) Instagram/podcast con
 
 ## TL;DR
 
-Benchmark #1, recall@5 (gbrain's own P@5 metric), against **two** versions of gbrain's stack:
+> ⚠️ **Read the [v2 correction](#-benchmark-v2--the-honest-fair-head-to-head-in-progress) first** — Benchmark #1's opponent had gbrain's graph removed, so this is a "graph vs no-graph" result, not "HydraDB vs gbrain."
+
+Benchmark #1, recall@5 (a hit-rate metric — maps to gbrain's R@5, **not** its P@5), against **two** versions of gbrain's stack:
 
 | Metric | **HydraDB** | gbrain **full stack** (RRF **+ reranker**) | gbrain fusion core (RRF, no reranker) |
 |---|:---:|:---:|:---:|
@@ -202,7 +205,35 @@ Endpoints (all JSON, for embedding elsewhere): `GET /api/status` · `POST /api/r
 
 ---
 
-## 🏆 Benchmark #1 — HydraDB vs a faithful gbrain stack
+## 🎯 Benchmark v2 — the honest, fair head-to-head (in progress)
+
+> **Correction.** Benchmark #1 below pits HydraDB against a *reproduction of gbrain's
+> pipeline with the knowledge graph removed*. That proves **"graph beats no-graph"** — the
+> same thing gbrain claims about its own graph (+31.4 P@5) — it does **not** prove "HydraDB
+> beats gbrain." It also reported a hit-rate metric we mislabeled as gbrain's "P@5" (gbrain's
+> published P@5 is 49.1%, R@5 is 97.9%, on a 240-page corpus; our hit-rate maps to R@5). So
+> Benchmark #1 is **not** a HydraDB-vs-gbrain result. v2 fixes that.
+
+**The unlock:** gbrain's source ships in this fork (`src/`), and `gbrain init` defaults to
+PGLite with the graph **ON**. So v2 runs the **real gbrain** (`bun src/cli.ts`) head-to-head
+against HydraDB — graph vs graph, real reranker, real pipeline — on one shared corpus.
+
+**What v2 reports (all apples-to-apples):**
+1. **Accuracy by capability** — P@5 **and** R@5 **and** MRR + LLM-judge answers, broken out by
+   query type (relational, multi-hop, negation, temporal, multi-session) so we show *where*
+   HydraDB's graph wins, not a single cherry-picked number.
+2. **Efficiency** — end-to-end p50/p95 latency and $/query: HydraDB's single `recall` call vs
+   gbrain's vector + BM25 + RRF + a separate **reranker model** pass.
+3. **Simplicity** — retrieval LOC + moving parts + setup steps (one call vs assembled stack).
+
+**Status:** Phase 0 ✅ (hard 90s Gemini timeout + live progress — the old harness wedged on a
+hung socket for 10h). Real gbrain runs from source ✅. Corpus + head-to-head harness: building.
+**Honest stance:** this is designed to give HydraDB its best *legitimate* shot; the efficiency
+and simplicity wins hold regardless, and we report the accuracy result straight whichever way it lands.
+
+---
+
+## 🏆 Benchmark #1 — HydraDB vs a faithful gbrain stack *(graph-removed reproduction — see correction above)*
 
 **The fair fight.** Per the instruction *"compare against whatever stack gbrain is using,"*
 the opponent is **not** a strawman pure-vector store. It reproduces gbrain's *entire documented
@@ -220,7 +251,7 @@ and **without** it (fusion core, 75.4%) so the reranker's contribution is explic
 
 - **Corpus** — 19 dense, temporal, entity-heavy "pages" (a relationship timeline): the regime
   where pure vector search breaks (dates, negation, who-did-what-to-whom, aggregation).
-- **Queries** — 19 gold-labelled cases · **Metric** — `recall@5` (gbrain's own P@5), `MRR`, and an LLM-as-judge answer pass.
+- **Queries** — 19 gold-labelled cases · **Metric** — `recall@5` (hit-rate; maps to gbrain's R@5, not P@5), `MRR`, and an LLM-as-judge answer pass.
 
 ### Where the win comes from — capability-by-capability
 

@@ -41,9 +41,9 @@ def _tok(text: str) -> list[str]:
 
 
 def _embed(texts: list[str], model: str | None = None) -> list[list[float]]:
-    from google import genai
+    from hydrabrain import llm
 
-    client = genai.Client(api_key=config.require("GEMINI_API_KEY"))
+    client = llm.client()
     model = model or config.GEMINI_EMBED_MODEL
     vecs: list[list[float]] = []
     # Embed one-by-one for maximal SDK-version compatibility.
@@ -70,12 +70,10 @@ def _llm_rerank(query: str, candidates: list[tuple[int, str]], top_k: int) -> li
     Falls back to the input order on any parse failure."""
     import json as _json
 
-    from google import genai
-
-    from hydrabrain import config
+    from hydrabrain import config, llm
 
     listing = "\n".join(f"[{i}] {txt[:500]}" for i, (_, txt) in enumerate(candidates))
-    client = genai.Client(api_key=config.require("GEMINI_API_KEY"))
+    client = llm.client()
     resp = client.models.generate_content(
         model=config.GEMINI_CHAT_MODEL,
         contents=(

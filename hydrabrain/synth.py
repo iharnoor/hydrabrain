@@ -34,14 +34,9 @@ class Answer:
         return "\n".join(out)
 
 
-_client: genai.Client | None = None
-
-
 def _genai() -> genai.Client:
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=config.require("GEMINI_API_KEY"))
-    return _client
+    from . import llm
+    return llm.client()  # cached, with a hard request timeout
 
 
 _SYNTH_PROMPT = """You are the synthesis layer of a personal memory engine. The user asked a \

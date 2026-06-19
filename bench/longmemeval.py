@@ -73,9 +73,8 @@ def is_evidence(retrieved_sids: list[str], gold_sids: list[str]) -> bool:
 
 # ── LLM answer + judge ─────────────────────────────────────────────
 def _genai():
-    from google import genai
-
-    return genai.Client(api_key=config.require("GEMINI_API_KEY"))
+    from hydrabrain import llm
+    return llm.client()  # hard request timeout — never wedge on a hung Gemini socket
 
 
 def generate_answer(gc, question: str, contexts: list[str]) -> str:
@@ -164,6 +163,11 @@ def run_baseline(q: dict, units: list[tuple[str, str]]) -> tuple[list[str], list
 
 # ── main ────────────────────────────────────────────────────────────
 def main(argv=None):
+    try:  # line-buffer so progress is visible even when redirected to a file
+        import sys as _sys
+        _sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=str(DATA_DEFAULT))
     ap.add_argument("--limit", type=int, default=15)
@@ -209,6 +213,7 @@ def main(argv=None):
         qtype = q["question_type"]
         abstain = qid.endswith("_abs")
         units = build_units(q)
+        print(f"  [{i:2}/{len(sample)}] {qtype[:22]:22} ingest {len(units)} sessions…")
 
         b_texts, b_sids = run_baseline(q, units)
         b_rec = is_evidence(b_sids, q["answer_session_ids"])

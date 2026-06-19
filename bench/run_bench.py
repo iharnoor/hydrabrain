@@ -79,9 +79,8 @@ def ensure_hydra_corpus(force: bool = False):
 
 # ── LLM-as-judge ────────────────────────────────────────────────────
 def _genai():
-    from google import genai
-
-    return genai.Client(api_key=config.require("GEMINI_API_KEY"))
+    from hydrabrain import llm
+    return llm.client()  # hard request timeout — never wedge on a hung Gemini socket
 
 
 def generate_answer(gc, question: str, chunks: list[str]) -> str:
