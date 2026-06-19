@@ -226,10 +226,28 @@ against HydraDB — graph vs graph, real reranker, real pipeline — on one shar
    gbrain's vector + BM25 + RRF + a separate **reranker model** pass.
 3. **Simplicity** — retrieval LOC + moving parts + setup steps (one call vs assembled stack).
 
-**Status:** Phase 0 ✅ (hard 90s Gemini timeout + live progress — the old harness wedged on a
-hung socket for 10h). Real gbrain runs from source ✅. Corpus + head-to-head harness: building.
-**Honest stance:** this is designed to give HydraDB its best *legitimate* shot; the efficiency
-and simplicity wins hold regardless, and we report the accuracy result straight whichever way it lands.
+### Results so far
+
+**① Architecture — HydraDB wins, decisively (measured from both real codebases, `bench/architecture.py`):**
+
+| | gbrain | HydraDB |
+|---|:---:|:---:|
+| retrieval-pipeline source | **9,345 LOC** / 32 files | **327 LOC** / 2 files |
+| assembled stages to own | 6 (HNSW · BM25 · RRF · reranker · expansion-LLM · graph) | **1** (`recall()` — server fuses dense+BM25+graph) |
+| external models/services | 4 | **1** |
+
+→ HydraDB delivers hybrid + graph retrieval in **~29× less code**, one call, no reranker/expansion pass to run or pay for per query, graph built on write. *This is the real, defensible "where HydraDB shines."*
+
+**② Accuracy — not settled (and currently un-runnable):**
+- **Real gbrain** (PGLite, Gemini embeddings, graph ON) measured on the 19-doc corpus: **recall@5 80.7%, MRR 0.732** (`bench/headtohead.py`).
+- **HydraDB: no number yet** — the HydraDB hosted API has been **500-ing on all endpoints** this whole session, so the head-to-head can't complete. We are **not** reusing the old Benchmark-#1 96.5% as a "win" (different session, not apples-to-apples).
+
+### Honest scorecard (where it's NOT better yet)
+- **Reliability:** HydraDB's simplicity is bought with a **hosted dependency** — when the API is down (as it is now), retrieval returns nothing. gbrain's PGLite is **local-first and always available.** Today, that's gbrain's edge.
+- **Accuracy:** **unproven.** gbrain's published **R@5 97.9% on a 240-doc entity corpus** is strong; we have not matched it in a confirmed head-to-head.
+- **Synthesis/gap-analysis:** both ship it — **parity**, not a HydraDB win.
+
+**Status:** Phase 0 ✅ · real gbrain head-to-head harness ✅ · architecture benchmark ✅ · accuracy head-to-head blocked on the HydraDB outage (re-run `python3 -m bench.headtohead` when it recovers) · 240-doc entity corpus + P@5/R@5: next.
 
 ---
 
