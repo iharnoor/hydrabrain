@@ -71,7 +71,7 @@
 | CLI (`hydrabrain`) | ✅ | 14 commands incl. sync/read/enrich/briefing/export/chat |
 | MCP server | ✅ | 8 tools: capture/read_url/search/think/briefing/enrich/graph/status |
 | Benchmark #1 (19-doc relational) | ⚠️ | **opponent had gbrain's graph removed** — proves "graph > no-graph," NOT "HydraDB > gbrain". Being superseded by v2. |
-| **Benchmark v2 — real gbrain head-to-head** | 🟡 | Phase 0 ✅ · real gbrain runs from source w/ Gemini embeddings (graph ON) ✅ · `bench/headtohead.py` harness ✅ (gbrain side verified end-to-end) · **first run blocked: HydraDB API returning 500 on all endpoints (outage)** — re-run when it recovers |
+| **Benchmark v2 — real gbrain head-to-head** | 🟡 | harness ✅ · **real gbrain (PGLite, Gemini embed, graph ON) measured: recall@5 80.7%, MRR 0.732** on the 19-doc corpus · **HydraDB half blocked — HydraDB API 500ing on all endpoints (outage)**, so NO confirmed head-to-head yet. Re-run `python3 -m bench.headtohead` when HydraDB recovers. |
 | Benchmark #2 (LongMemEval `_s`) | 🟡 | harness fixed (no more wedge); decisive run pending |
 | Bulk sync / import | ✅ | `hydrabrain sync` — incremental, content-hash dedup, manifest-backed |
 | Ingestion connectors (articles / tweets / YouTube) | 🟡 | article reader + **tweets (free oEmbed)** + YouTube transcript (`hydrabrain read <url>`); LinkedIn best-effort; IG/podcasts next |
