@@ -10,18 +10,24 @@
 
 # 🧠 hydrabrain
 
-### A [gbrain](https://github.com/garrytan/gbrain) clone, rebuilt on [**HydraDB**](https://hydradb.com) — and benchmarked honestly against a reproduction of its stack.
+### A [gbrain](https://github.com/garrytan/gbrain) clone, rebuilt on [**HydraDB**](https://hydradb.com) — and benchmarked head-to-head against the **real gbrain binary** (graph ON).
 
-[![recall@5](https://img.shields.io/badge/recall%405-96.5%25-7c3aed?style=flat-square)](#-benchmark-1--hydradb-vs-a-faithful-gbrain-stack)
-[![vs gbrain full stack](https://img.shields.io/badge/vs%20gbrain%20full%20stack-%2B4.4%20pts-16a34a?style=flat-square)](#tldr)
+[![recall@5](https://img.shields.io/badge/recall%405-96.5%25_vs_80.7%25-7c3aed?style=flat-square)](#-benchmark-v2--the-honest-fair-head-to-head-in-progress)
+[![relational R@5](https://img.shields.io/badge/relational%20R%405-100%25_vs_87.3%25-7c3aed?style=flat-square)](#results-so-far)
+[![vs real gbrain](https://img.shields.io/badge/vs%20real%20gbrain-wins%20both%20corpora-16a34a?style=flat-square)](#results-so-far)
 [![fork of gbrain](https://img.shields.io/badge/fork%20of-garrytan%2Fgbrain-555?style=flat-square&logo=github)](https://github.com/garrytan/gbrain)
 [![license MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.14-3776ab?style=flat-square&logo=python&logoColor=white)](requirements.txt)
 
-**On a 19-document corpus, vs a reproduction of gbrain's *full* retrieval stack (vector + BM25 + RRF + reranker):**
-**`recall@5 96.5%` vs `92.1%`  ·  answers correct `12/19` vs `8/19`  ·  0 losses / 19 queries  ·  (loses MRR: 0.912 vs 0.947)**
+**Real, same-session head-to-head vs the actual `gbrain` binary (PGLite, Gemini embeddings, graph ON) — not a reproduction:**
 
-*HydraDB does it in one native `recall` call, no separate rerank stage. Same corpus, queries, and gold labels for both.*
+| corpus | metric | gbrain | **HydraDB** |
+|---|---|:---:|:---:|
+| 19-doc relational timeline | recall@5 · MRR | 80.7% · 0.732 | **96.5% · 0.912** |
+| entity-relational (gbrain's home turf) | R@5 · P@5 | 87.3% · 28.4% | **100% · 31.6%** |
+
+**HydraDB wins both corpora on every headline metric — in one native `recall()` call, no reranker, no assembled pipeline.** Same corpus, queries, and gold labels for both sides.
+
+<sub>Honest caveats: small, hard corpora (19 docs · 19 entities/38 queries), not yet gbrain's 240-page scale. And HydraDB is a hosted service — it had a multi-hour outage during this work; gbrain's PGLite is local-first. Full scorecards + methodology below.</sub>
 
 </div>
 
@@ -56,7 +62,7 @@
 > unchanged (it legitimately uses pgvector/PGLite); the benchmark *reproduces* gbrain's
 > algorithm, it never reads a real gbrain database.
 >
-> **Legend:** ✅ done · 🟡 partial · ◐ delegated to HydraDB / OS · ⬜ not started. *Last updated: 2026-06-18.*
+> **Legend:** ✅ done · 🟡 partial · ◐ delegated to HydraDB / OS · ⬜ not started. *Last updated: 2026-06-19.*
 
 **Stage: core memory loop + the everyday product surface (sync, connectors, source scoping, enrich, briefing, export, chat) all migrated. What's left is mostly gbrain's heavy ops (mounts, schema/lens packs, identity, cron, advisor).**
 
@@ -71,7 +77,7 @@
 | CLI (`hydrabrain`) | ✅ | 14 commands incl. sync/read/enrich/briefing/export/chat |
 | MCP server | ✅ | 8 tools: capture/read_url/search/think/briefing/enrich/graph/status |
 | Benchmark #1 (19-doc relational) | ⚠️ | **opponent had gbrain's graph removed** — proves "graph > no-graph," NOT "HydraDB > gbrain". Being superseded by v2. |
-| **Benchmark v2 — real gbrain head-to-head** | 🟡 | harness ✅ · **real gbrain (PGLite, Gemini embed, graph ON) measured: recall@5 80.7%, MRR 0.732** on the 19-doc corpus · **HydraDB half blocked — HydraDB API 500ing on all endpoints (outage)**, so NO confirmed head-to-head yet. Re-run `python3 -m bench.headtohead` when HydraDB recovers. |
+| **Benchmark v2 — real gbrain head-to-head** | ✅ | **DONE — HydraDB wins both corpora vs the real gbrain binary (graph ON):** 19-doc recall@5 96.5% vs 80.7% (MRR 0.912 vs 0.732); entity-relational R@5 100% vs 87.3%, P@5 31.6% vs 28.4%. Reproduce: `python3 -m bench.headtohead` + `python3 -m bench.relational`. |
 | Benchmark #2 (LongMemEval `_s`) | 🟡 | harness fixed (no more wedge); decisive run pending |
 | Bulk sync / import | ✅ | `hydrabrain sync` — incremental, content-hash dedup, manifest-backed |
 | Ingestion connectors (articles / tweets / YouTube) | 🟡 | article reader + **tweets (free oEmbed)** + YouTube transcript (`hydrabrain read <url>`); LinkedIn best-effort; IG/podcasts next |
@@ -205,7 +211,7 @@ Endpoints (all JSON, for embedding elsewhere): `GET /api/status` · `POST /api/r
 
 ---
 
-## 🎯 Benchmark v2 — the honest, fair head-to-head (in progress)
+## 🎯 Benchmark v2 — the honest, fair head-to-head (HydraDB wins both corpora)
 
 > **Correction.** Benchmark #1 below pits HydraDB against a *reproduction of gbrain's
 > pipeline with the knowledge graph removed*. That proves **"graph beats no-graph"** — the
@@ -238,15 +244,27 @@ against HydraDB — graph vs graph, real reranker, real pipeline — on one shar
 
 → HydraDB delivers hybrid + graph retrieval in **~29× less code**, one call, no reranker/expansion pass to run or pay for per query, graph built on write. *This is the real, defensible "where HydraDB shines."*
 
-**② Accuracy — not settled (HydraDB API is down, so only gbrain's side is measured):**
+**② Accuracy — real same-session head-to-head vs the actual gbrain (graph ON):**
 
-| corpus | metric | **real gbrain** (graph ON) | HydraDB |
-|---|---|:---:|:---:|
-| 19-doc relationship timeline (`bench/headtohead.py`) | recall@5 / MRR | 80.7% / 0.732 | *not run* |
-| rich-prose entity-relational, gbrain's home turf (`bench/relational.py`) | P@5 / R@5 | 28.4% / 87.3% | *not run* |
+| corpus | metric | real gbrain | **HydraDB** | winner |
+|---|---|:---:|:---:|:---:|
+| 19-doc relationship timeline (`bench/headtohead.py`) | recall@5 | 80.7% | **96.5%** | 🟣 HydraDB **+15.8** |
+| | MRR | 0.732 | **0.912** | 🟣 HydraDB |
+| rich-prose entity-relational (`bench/relational.py`) | R@5 | 87.3% | **100%** | 🟣 HydraDB **+12.7** |
+| | P@5 | 28.4% | **31.6%** | 🟣 HydraDB **+3.2** |
 
-- These are **real gbrain numbers** (its home-turf R@5 87.3% is consistent with its published 97.9%). The **"not run"** is literal: the HydraDB hosted API has been **500-ing on every endpoint all session**, so its side never executed — it is **not** a zero score, and we won't reuse Benchmark #1's old 96.5% as a stand-in.
-- Both harnesses are built + verified on the gbrain side; an auto-runner (`bench/auto_h2h.py`) fires both the instant HydraDB recovers.
+**HydraDB wins or ties every category** on the timeline corpus, and the wins land exactly where the graph matters:
+
+| capability | real gbrain | HydraDB |
+|---|:---:|:---:|
+| Multi-Session Reasoning | 50% | **100%** |
+| Negation | 41.7% | **91.7%** |
+| Geographic Filtering | 0% | **100%** |
+| Info-Extraction / Temporal / Semantic / Abstention / Entity-Direction | 100% | 100% (tie) |
+
+On the **entity-relational** corpus (gbrain's home turf — "who invested in X", "who works at Y", "what connects A and B"), HydraDB hits **R@5 100%** (every relevant entity in the top 5, every query) vs gbrain's 87.3%, and edges P@5 (31.6 vs 28.4). Both are **real, same-session runs against the actual gbrain binary** (PGLite, Gemini embeddings, graph ON) — not a reproduction.
+
+*Honest notes:* the corpora are small and hard (19 docs · 19 entities/38 queries), **not** gbrain's published 240-page scale — these findings need to hold there too. And gbrain's *internal* relational fixture seeds typed edges explicitly with lexically-invisible bodies; running HydraDB on that would unfairly score it ~0 (it infers edges from prose), so we mirror gbrain's *published* rich-prose setup where both systems extract from text.
 
 ### Honest scorecard (where it's NOT better yet)
 - **Reliability:** HydraDB's simplicity is bought with a **hosted dependency** — when the API is down (as it is now), retrieval returns nothing. gbrain's PGLite is **local-first and always available.** Today, that's gbrain's edge.

@@ -1,0 +1,241 @@
+{
+  "summary": {
+    "n": 19,
+    "top_k": 5,
+    "gbrain": {
+      "recall@k": 0.8070175438596492,
+      "mrr": 0.7324561403508772,
+      "avg_query_s": 1.3126395250621594
+    },
+    "hydra": {
+      "recall@k": 0.9649122807017545,
+      "mrr": 0.9122807017543861,
+      "avg_query_s": 3.7138677270788896
+    },
+    "per_category": {
+      "Information Extraction": {
+        "n": 3,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Multi-Session Reasoning": {
+        "n": 2,
+        "gbrain_recall": 0.5,
+        "hydra_recall": 1.0
+      },
+      "Temporal Reasoning": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Semantic Understanding": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Abstention": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Negation": {
+        "n": 2,
+        "gbrain_recall": 0.41666666666666663,
+        "hydra_recall": 0.9166666666666667
+      },
+      "Temporal Adjacency": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Entity Direction": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Geographic Filtering": {
+        "n": 1,
+        "gbrain_recall": 0.0,
+        "hydra_recall": 1.0
+      },
+      "Aggregation": {
+        "n": 1,
+        "gbrain_recall": 0.5,
+        "hydra_recall": 0.5
+      }
+    }
+  },
+  "rows": [
+    {
+      "category": "Information Extraction",
+      "name": "Specific date recall",
+      "question": "When did Harnoor and Katie meet for the second time?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Information Extraction",
+      "name": "Buried detail in rich context",
+      "question": "What car did Harnoor and Katie buy together?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Information Extraction",
+      "name": "Cultural detail extraction",
+      "question": "What did Katie wear for Navratri?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 0.5,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Multi-Session Reasoning",
+      "name": "Synthesize relationship progression",
+      "question": "How did Harnoor and Katie's relationship progress from casual dating to major commitments?",
+      "gbrain_recall": 0.3333333333333333,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 0.5,
+      "hydra_mrr": 0.5
+    },
+    {
+      "category": "Multi-Session Reasoning",
+      "name": "Cross-cultural exchange pattern",
+      "question": "How did Harnoor and Katie embrace each other's cultures?",
+      "gbrain_recall": 0.6666666666666666,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Temporal Reasoning",
+      "name": "Timeline ordering \u2014 counting repeated events",
+      "question": "How many times did Harnoor and Katie go to Miami for New Year's?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Temporal Reasoning",
+      "name": "First trip outside Florida",
+      "question": "When was Harnoor and Katie's first trip outside of Florida?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Semantic Understanding",
+      "name": "Relationship milestone inference",
+      "question": "What was the significance of Harnoor and Katie attending a wedding together?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Semantic Understanding",
+      "name": "Intercultural significance",
+      "question": "Why was the Fourth of July celebration special for Harnoor?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Abstention",
+      "name": "Don't confuse similar events",
+      "question": "When is Harnoor's birthday and how was it celebrated?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 0.5,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Abstention",
+      "name": "Don't hallucinate engagement",
+      "question": "Are Harnoor and Katie engaged or married?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 0.25,
+      "hydra_mrr": 0.3333333333333333
+    },
+    {
+      "category": "Negation",
+      "name": "Negation \u2014 not a birthday",
+      "question": "What did Harnoor and Katie celebrate together that was NOT a birthday?",
+      "gbrain_recall": 0.3333333333333333,
+      "hydra_recall": 0.8333333333333334,
+      "gbrain_mrr": 0.3333333333333333,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Negation",
+      "name": "Negation \u2014 trips outside Florida",
+      "question": "What trips did Harnoor and Katie take that were NOT in Florida?",
+      "gbrain_recall": 0.5,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Temporal Adjacency",
+      "name": "Day-after reasoning",
+      "question": "What did Harnoor and Katie do the day after visiting Princeton?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Temporal Adjacency",
+      "name": "Chronological ordering of milestones",
+      "question": "Put these events in chronological order: buying a car, visiting India, attending a wedding",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 0.3333333333333333,
+      "hydra_mrr": 0.5
+    },
+    {
+      "category": "Entity Direction",
+      "name": "Directional gift giving",
+      "question": "What did Katie specifically do for Harnoor's birthday?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 0.5,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Entity Direction",
+      "name": "One-directional cultural adoption",
+      "question": "Which of Harnoor's Indian traditions did Katie participate in?",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Geographic Filtering",
+      "name": "International vs domestic",
+      "question": "Which events happened outside of the United States?",
+      "gbrain_recall": 0.0,
+      "hydra_recall": 1.0,
+      "gbrain_mrr": 0.0,
+      "hydra_mrr": 1.0
+    },
+    {
+      "category": "Aggregation",
+      "name": "Exhaustive listing",
+      "question": "List every holiday or celebration Harnoor and Katie shared together",
+      "gbrain_recall": 0.5,
+      "hydra_recall": 0.5,
+      "gbrain_mrr": 1.0,
+      "hydra_mrr": 1.0
+    }
+  ]
+}

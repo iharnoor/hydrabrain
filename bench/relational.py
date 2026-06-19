@@ -151,16 +151,21 @@ def gbrain_entities(env, query, k):
 
 
 # ── HydraDB driver ──────────────────────────────────────────────────
+REL_SOURCE = "relbench"  # isolated HydraDB namespace so this corpus can't collide with other benchmarks
+
+
 def setup_hydra():
     from hydrabrain.engine import BrainEngine
-    eng = BrainEngine()
-    if eng.client.count() == 0:
-        print(f"  [HydraDB] ingesting {len(PEOPLE)+len(COMPANIES)} entity pages (infer=True)")
+    eng = BrainEngine(source_id=REL_SOURCE)  # scopes both ingest + search to this namespace
+    if eng.client.count(sub_tenant_id=REL_SOURCE) == 0:
+        print(f"  [HydraDB] ingesting {len(PEOPLE)+len(COMPANIES)} entity pages into '{REL_SOURCE}' (infer=True)")
         for p in PEOPLE:
-            eng.client.add_memory(person_body(p), title=f"people/{p}", infer=True); time.sleep(0.3)
+            eng.client.add_memory(person_body(p), title=f"people/{p}", infer=True, sub_tenant_id=REL_SOURCE); time.sleep(0.3)
         for c in COMPANIES:
-            eng.client.add_memory(company_body(c), title=f"companies/{c}", infer=True); time.sleep(0.3)
+            eng.client.add_memory(company_body(c), title=f"companies/{c}", infer=True, sub_tenant_id=REL_SOURCE); time.sleep(0.3)
         print("  [HydraDB] waiting 60s for graph wiring…"); time.sleep(60)
+    else:
+        print(f"  [HydraDB] reusing existing '{REL_SOURCE}' namespace")
     return eng
 
 
