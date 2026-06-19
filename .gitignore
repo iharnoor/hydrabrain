@@ -53,3 +53,5 @@ bench/data/
 # head-to-head benchmark gbrain brain (local, regenerable)
 bench/.gbrain-h2h/
 bench/headtohead_results.json
+bench/.gbrain-rel/
+bench/relational_results.json
