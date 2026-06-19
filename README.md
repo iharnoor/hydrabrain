@@ -183,6 +183,19 @@ print(brain.think("What car did we buy?").render())
 
 ---
 
+## ⚡ Install in one line
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/iharnoor/hydrabrain/master/scripts/install.sh | bash
+```
+
+Clones (if needed) → installs deps → guided key setup (**Free mode = just a HydraDB key**) →
+verifies → registers the MCP server with Claude if present. Add YouTube ingestion with
+`HYDRABRAIN_WITH_YOUTUBE=1`. Agents: invoke the **`setup-hydrabrain`** skill. Already cloned?
+`bash scripts/install.sh`.
+
+---
+
 ## 🖥️ Web UI — ready out of the box
 
 Built for **creators**: paste a blog post, article, or YouTube URL and it's in your brain;
