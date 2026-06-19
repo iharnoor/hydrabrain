@@ -49,3 +49,7 @@ __pycache__/
 bench/results.json
 bench/longmemeval_results.json
 bench/data/
+
+# head-to-head benchmark gbrain brain (local, regenerable)
+bench/.gbrain-h2h/
+bench/headtohead_results.json
