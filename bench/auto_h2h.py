@@ -38,9 +38,13 @@ def main(argv=None):
 
     for i in range(1, args.max_checks + 1):
         if healthy():
-            print(f"[{i}] HydraDB healthy — running head-to-head", flush=True)
-            r = subprocess.run([sys.executable, "-u", "-m", "bench.headtohead"])
-            sys.exit(r.returncode)
+            print(f"[{i}] HydraDB healthy — running both benchmarks", flush=True)
+            rc = 0
+            for mod in ("bench.headtohead", "bench.relational"):
+                print(f"\n===== {mod} =====", flush=True)
+                r = subprocess.run([sys.executable, "-u", "-m", mod])
+                rc = rc or r.returncode
+            sys.exit(rc)
         print(f"[{i}/{args.max_checks}] HydraDB still down — retry in {args.interval}s", flush=True)
         time.sleep(args.interval)
 

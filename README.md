@@ -238,9 +238,15 @@ against HydraDB — graph vs graph, real reranker, real pipeline — on one shar
 
 → HydraDB delivers hybrid + graph retrieval in **~29× less code**, one call, no reranker/expansion pass to run or pay for per query, graph built on write. *This is the real, defensible "where HydraDB shines."*
 
-**② Accuracy — not settled (and currently un-runnable):**
-- **Real gbrain** (PGLite, Gemini embeddings, graph ON) measured on the 19-doc corpus: **recall@5 80.7%, MRR 0.732** (`bench/headtohead.py`).
-- **HydraDB: no number yet** — the HydraDB hosted API has been **500-ing on all endpoints** this whole session, so the head-to-head can't complete. We are **not** reusing the old Benchmark-#1 96.5% as a "win" (different session, not apples-to-apples).
+**② Accuracy — not settled (HydraDB API is down, so only gbrain's side is measured):**
+
+| corpus | metric | **real gbrain** (graph ON) | HydraDB |
+|---|---|:---:|:---:|
+| 19-doc relationship timeline (`bench/headtohead.py`) | recall@5 / MRR | 80.7% / 0.732 | *not run* |
+| rich-prose entity-relational, gbrain's home turf (`bench/relational.py`) | P@5 / R@5 | 28.4% / 87.3% | *not run* |
+
+- These are **real gbrain numbers** (its home-turf R@5 87.3% is consistent with its published 97.9%). The **"not run"** is literal: the HydraDB hosted API has been **500-ing on every endpoint all session**, so its side never executed — it is **not** a zero score, and we won't reuse Benchmark #1's old 96.5% as a stand-in.
+- Both harnesses are built + verified on the gbrain side; an auto-runner (`bench/auto_h2h.py`) fires both the instant HydraDB recovers.
 
 ### Honest scorecard (where it's NOT better yet)
 - **Reliability:** HydraDB's simplicity is bought with a **hosted dependency** — when the API is down (as it is now), retrieval returns nothing. gbrain's PGLite is **local-first and always available.** Today, that's gbrain's edge.
