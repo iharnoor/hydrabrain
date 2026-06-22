@@ -57,3 +57,5 @@ bench/.gbrain-rel/
 bench/relational_results.json
 
 *.egg-info/
+
+.venv/

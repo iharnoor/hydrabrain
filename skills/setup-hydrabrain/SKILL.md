@@ -33,7 +33,10 @@ From inside a clone: `bash scripts/install.sh`. To include YouTube ingestion:
 ## What it does (and how to do each step by hand)
 
 1. **Python check** — needs Python 3.10+.
-2. **Clone (if needed)** + `pip install -r requirements.txt`.
+2. **Clone (if needed)** + install deps **into a venv** (modern macOS/Linux Python is
+   "externally managed" per PEP 668, so a venv is the portable path):
+   `python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt`.
+   Then run commands as `.venv/bin/python -m hydrabrain.cli …` (or `source .venv/bin/activate` first).
 3. **Key setup** — runs `python3 -m hydrabrain.cli init`:
    - **Free mode** (recommended to start): just a HydraDB key — unlocks capture, sync,
      `read <url>`, and search. Get one free at <https://hydradb.com>.
