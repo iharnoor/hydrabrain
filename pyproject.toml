@@ -41,6 +41,10 @@ Issues = "https://github.com/usecortex/hermes-hydrabrain/issues"
 [tool.setuptools.packages.find]
 include = ["hydrabrain*", "bench*"]
 
+[tool.setuptools.package-data]
+# ship the web UI assets so `hydrabrain web` works from a pip/pipx install
+hydrabrain = ["web/*.html"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100

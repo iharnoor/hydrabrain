@@ -189,10 +189,22 @@ print(brain.think("What car did we buy?").render())
 curl -fsSL https://raw.githubusercontent.com/iharnoor/hydrabrain/master/scripts/install.sh | bash
 ```
 
-Clones (if needed) → installs deps → guided key setup (**Free mode = just a HydraDB key**) →
-verifies → registers the MCP server with Claude if present. Add YouTube ingestion with
-`HYDRABRAIN_WITH_YOUTUBE=1`. Agents: invoke the **`setup-hydrabrain`** skill. Already cloned?
-`bash scripts/install.sh`.
+Clones (if needed) → builds a `.venv` (works on Homebrew/managed Python — no PEP 668 error) →
+installs deps → guided key setup (**Free mode = just a HydraDB key**) → verifies → registers the
+MCP server with Claude if present. Add YouTube ingestion with `HYDRABRAIN_WITH_YOUTUBE=1`.
+Agents: invoke the **`setup-hydrabrain`** skill.
+
+**Other ways to install:**
+
+```bash
+# From a clone, via make:
+make install        # venv + deps + guided key setup     make web   # launch the UI
+make dev            # editable install + test tools       make doctor
+
+# Global `hydrabrain` command, isolated (pipx manages its own venv — PEP-668-safe):
+pipx install git+https://github.com/iharnoor/hydrabrain.git
+hydrabrain init && hydrabrain web --open
+```
 
 ---
 
