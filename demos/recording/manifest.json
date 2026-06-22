@@ -1,0 +1,24 @@
+{
+  "videos": {
+    "cli_demo": "demos/recording/hydrabrain-demo.mp4",
+    "full_demo": "demos/recording/hydrabrain-full-demo.mp4"
+  },
+  "duration_sec": {
+    "cli_demo": 55,
+    "full_demo": 63
+  },
+  "demos_run": [
+    {"name": "status", "result": "tenant=test1, 8 memories"},
+    {"name": "doctor", "result": "HydraDB OK; Gemini missing (think degraded)"},
+    {"name": "capture", "result": "Demo thought ingested"},
+    {"name": "ingest", "result": "2 markdown files imported"},
+    {"name": "sync", "result": "Dry-run incremental sync of sample-notes/"},
+    {"name": "search", "result": "Project Alpha + MCP tools recalled from brain"},
+    {"name": "graph", "result": "Knowledge graph explored"},
+    {"name": "web_ui", "result": "Note capture + chat with citations (8 memories)"}
+  ],
+  "brain_after_demo": {
+    "tenant": "test1",
+    "memories": 8
+  }
+}

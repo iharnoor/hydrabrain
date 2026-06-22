@@ -1,16 +1,13 @@
 """Synthesis layer — turn retrieved chunks into a cited prose answer with gaps.
 
-This mirrors gbrain's `think` capability: instead of returning a raw list of
-pages, we synthesize a grounded answer, attach inline [n] citations, and
-explicitly flag what the corpus could NOT answer (gap analysis). Gemini is used
-purely as the writer/grounding layer; all facts come from HydraDB retrieval.
+All facts come from HydraDB retrieval. The LLM (Claude or Gemini) is purely
+the writer/grounding layer. Falls back to returning the top memory directly
+when no LLM key is configured (free mode).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-
-from google import genai
 
 from . import config
 from .client import Chunk
@@ -34,11 +31,6 @@ class Answer:
         return "\n".join(out)
 
 
-def _genai() -> genai.Client:
-    from . import llm
-    return llm.client()  # cached, with a hard request timeout
-
-
 _SYNTH_PROMPT = """You are the synthesis layer of a personal memory engine. The user asked a \
 question and a retrieval system returned the memory chunks below (ranked). \
 
@@ -60,25 +52,20 @@ def synthesize(question: str, chunks: list[Chunk], model: str | None = None) -> 
     if not chunks:
         return Answer(text="I have no memories relevant to that yet.", gaps="entire question")
 
-    # Free mode: no Gemini key → skip synthesis, return the top matching memories
-    # directly so capture/search/read are fully usable without a paid/LLM key.
-    if not config.have_gemini():
+    if not config.have_llm():
         top = chunks[0].text.strip().replace("\n", " ")
+        provider_hint = "Add ANTHROPIC_API_KEY or GEMINI_API_KEY to ~/.hydrabrain/.env"
         return Answer(
             text=(f"Here's the most relevant memory I found [1]:\n\n{top[:400]}\n\n"
-                  "_(Add a Gemini key via `hydrabrain init` to get synthesized, cited answers.)_"),
+                  f"_({provider_hint} to get synthesized, cited answers.)_"),
             citations=chunks,
             gaps="",
         )
 
-    context = "\n\n".join(
-        f"[{i}] {c.text.strip()}" for i, c in enumerate(chunks, 1)
-    )
-    resp = _genai().models.generate_content(
-        model=model or config.GEMINI_CHAT_MODEL,
-        contents=_SYNTH_PROMPT.format(question=question, context=context),
-    )
-    text = (resp.text or "").strip()
+    from . import llm
+
+    context = "\n\n".join(f"[{i}] {c.text.strip()}" for i, c in enumerate(chunks, 1))
+    text = llm.generate(_SYNTH_PROMPT.format(question=question, context=context), model=model)
 
     gaps = ""
     if "GAPS:" in text:
@@ -88,3 +75,9 @@ def synthesize(question: str, chunks: list[Chunk], model: str | None = None) -> 
         if gaps.lower() == "none":
             gaps = ""
     return Answer(text=text, citations=chunks, gaps=gaps)
+
+
+# Keep for backwards compat (enrich.py imports this)
+def _genai():
+    from . import llm
+    return llm.client()

@@ -1,0 +1,173 @@
+{
+  "video": "/Users/nishkarsh/Developer/Hermes-HydraBrain/demos/recording/gbrain-vs-hydradb-user-demo.mp4",
+  "frames": 10,
+  "duration_sec": 80,
+  "benchmark_summary": {
+    "n": 19,
+    "top_k": 5,
+    "gbrain": {
+      "recall@k": 0.8070175438596492,
+      "mrr": 0.7324561403508772,
+      "avg_query_s": 1.3126395250621594
+    },
+    "hydra": {
+      "recall@k": 0.9649122807017545,
+      "mrr": 0.9122807017543861,
+      "avg_query_s": 3.7138677270788896
+    },
+    "per_category": {
+      "Information Extraction": {
+        "n": 3,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Multi-Session Reasoning": {
+        "n": 2,
+        "gbrain_recall": 0.5,
+        "hydra_recall": 1.0
+      },
+      "Temporal Reasoning": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Semantic Understanding": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Abstention": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Negation": {
+        "n": 2,
+        "gbrain_recall": 0.41666666666666663,
+        "hydra_recall": 0.9166666666666667
+      },
+      "Temporal Adjacency": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Entity Direction": {
+        "n": 2,
+        "gbrain_recall": 1.0,
+        "hydra_recall": 1.0
+      },
+      "Geographic Filtering": {
+        "n": 1,
+        "gbrain_recall": 0.0,
+        "hydra_recall": 1.0
+      },
+      "Aggregation": {
+        "n": 1,
+        "gbrain_recall": 0.5,
+        "hydra_recall": 0.5
+      }
+    }
+  },
+  "relational_summary": {
+    "n": 38,
+    "k": 5,
+    "gbrain": {
+      "P@k": 0.28421052631578947,
+      "R@k": 0.8728070175438598
+    },
+    "hydra": {
+      "P@k": 0.31578947368421045,
+      "R@k": 1.0
+    }
+  },
+  "use_cases": [
+    {
+      "id": "trips-abroad",
+      "title": "Plan your next vacation",
+      "gbrain_recall": 0.5,
+      "hydra_recall": 1.0,
+      "hydra_top": [
+        "July 3, 2021 - Visiting Princeton University: On July 3, 2021, Harnoor and Katie visited Princeton University in New Jersey. They took a sel\u2026",
+        "March 2022 - Visiting the Taj Mahal in India: During their India trip in March 2022, Harnoor and Katie visited the Taj Mahal in Agra. Katie \u2026",
+        "March 3, 2022 - Packing for India Trip: On March 3, 2022, Harnoor and Katie packed their suitcases for a trip to India. They posed in their \u2026"
+      ]
+    },
+    {
+      "id": "international",
+      "title": "Find your international moments",
+      "gbrain_recall": 0.0,
+      "hydra_recall": 1.0,
+      "hydra_top": [
+        "March 2022 - Visiting the Taj Mahal in India: During their India trip in March 2022, Harnoor and Katie visited the Taj Mahal in Agra. Katie \u2026",
+        "March 3, 2022 - Packing for India Trip: On March 3, 2022, Harnoor and Katie packed their suitcases for a trip to India. They posed in their \u2026",
+        "This document chronicles the relationship journey of Harnoor Singh and Katie, from their second meeting in October 2020 through buying a car\u2026"
+      ]
+    },
+    {
+      "id": "relationship-arc",
+      "title": "Write your anniversary post",
+      "gbrain_recall": 0.3333333333333333,
+      "hydra_recall": 1.0,
+      "hydra_top": [
+        "May 7, 2022 - Buying a Car Together, Tesla Model 3: On May 7, 2022, Harnoor and Katie bought a car together - a white Tesla Model 3. They po\u2026",
+        "This document chronicles the relationship journey of Harnoor Singh and Katie, from their second meeting in October 2020 through buying a car\u2026",
+        "March 3, 2022 - Packing for India Trip: On March 3, 2022, Harnoor and Katie packed their suitcases for a trip to India. They posed in their \u2026"
+      ]
+    },
+    {
+      "id": "non-birthday",
+      "title": "Plan a celebration (not a birthday)",
+      "gbrain_recall": 0.3333333333333333,
+      "hydra_recall": 0.8333333333333334,
+      "hydra_top": [
+        "October 15, 2021 - Celebrating Navratri Together: On October 15, 2021, Harnoor and Katie celebrated Navratri together - a major Hindu festiv\u2026",
+        "December 25, 2021 - Christmas Together: Harnoor and Katie celebrated Christmas together on December 25, 2021. They posed by a decorated Chri\u2026",
+        "July 4, 2021 - Fourth of July Fireworks Celebration: Harnoor and Katie celebrated the Fourth of July 2021 together, watching fireworks in a \u2026"
+      ]
+    },
+    {
+      "id": "cross-cultural",
+      "title": "Prepare to meet the family",
+      "gbrain_recall": 0.6666666666666666,
+      "hydra_recall": 1.0,
+      "hydra_top": [
+        "October 15, 2021 - Celebrating Navratri Together: On October 15, 2021, Harnoor and Katie celebrated Navratri together - a major Hindu festiv\u2026",
+        "December 25, 2021 - Christmas Together: Harnoor and Katie celebrated Christmas together on December 25, 2021. They posed by a decorated Chri\u2026",
+        "March 2022 - Visiting the Taj Mahal in India: During their India trip in March 2022, Harnoor and Katie visited the Taj Mahal in Agra. Katie \u2026"
+      ]
+    },
+    {
+      "id": "birthday-direction",
+      "title": "Remember who did what",
+      "gbrain_recall": 1.0,
+      "hydra_recall": 1.0,
+      "hydra_top": [
+        "December 23, 2020 - Harnoor's Birthday Celebration: Katie surprised Harnoor with a birthday celebration on December 23, 2020. This was their\u2026",
+        "March 16, 2021 - Katie's Birthday: Harnoor celebrated Katie's birthday on March 16, 2021. He got her a beautiful white layered birthday cake\u2026",
+        "October 15, 2021 - Celebrating Navratri Together: On October 15, 2021, Harnoor and Katie celebrated Navratri together - a major Hindu festiv\u2026"
+      ]
+    },
+    {
+      "id": "cap-table",
+      "title": "Track your investor network",
+      "gbrain_recall": 0.8728070175438598,
+      "hydra_recall": 1.0,
+      "hydra_top": [
+        "fund-a is an venture fund in the startup network. fund-a invested in widget-co, novapay. Background details are otherwise sparse. Extra cont\u2026",
+        "bob is an operator and angel investor in the startup network. bob invested in widget-co, novapay. Background details are otherwise sparse. E\u2026",
+        "ivan is an operator and angel investor in the startup network. ivan invested in orbital. ivan works at zenith. ivan founded widget-co. Backg\u2026"
+      ]
+    },
+    {
+      "id": "team-map",
+      "title": "Map your startup network",
+      "gbrain_recall": 0.8728070175438598,
+      "hydra_recall": 1.0,
+      "hydra_top": [
+        "frank is an operator and angel investor in the startup network. frank invested in quanta. frank works at acme-co. frank founded quanta. fran\u2026",
+        "dave is an operator and angel investor in the startup network. dave invested in mindbridge. dave works at acme-co. Background details are ot\u2026",
+        "acme-co is a privately held company operating in its sector. Founded some years ago. Extra context: Acme-co is a privately held company."
+      ]
+    }
+  ]
+}

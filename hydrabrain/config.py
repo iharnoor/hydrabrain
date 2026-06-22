@@ -38,19 +38,21 @@ def _load_env() -> None:
 
 def reload() -> None:
     """Re-read the .env files and refresh module-level keys (after onboarding writes them)."""
-    global HYDRADB_API_KEY, GEMINI_API_KEY
+    global HYDRADB_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY
     if load_dotenv is not None:
         for path in _ENV_CANDIDATES:
             if path.exists():
                 load_dotenv(path, override=True)
     HYDRADB_API_KEY = os.getenv("HYDRADB_API_KEY", "")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 
 _load_env()
 
 HYDRADB_API_KEY = os.getenv("HYDRADB_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 # A HydraDB free plan is capped at one tenant; reuse it everywhere.
 DEFAULT_TENANT = os.getenv("HYDRABRAIN_TENANT", "test1")
@@ -69,6 +71,7 @@ HYDRA_RECALL_ALPHA = float(os.getenv("HYDRA_RECALL_ALPHA", "1.0"))
 # Models
 GEMINI_CHAT_MODEL = os.getenv("HYDRABRAIN_CHAT_MODEL", "gemini-2.5-flash")
 GEMINI_EMBED_MODEL = os.getenv("HYDRABRAIN_EMBED_MODEL", "gemini-embedding-001")
+ANTHROPIC_CHAT_MODEL = os.getenv("HYDRABRAIN_ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
 # Where to get free keys (shown in onboarding "free mode").
 HYDRADB_SIGNUP_URL = "https://hydradb.com"
@@ -81,6 +84,15 @@ def have_hydradb() -> bool:
 
 def have_gemini() -> bool:
     return bool(os.getenv("GEMINI_API_KEY", ""))
+
+
+def have_anthropic() -> bool:
+    return bool(os.getenv("ANTHROPIC_API_KEY", ""))
+
+
+def have_llm() -> bool:
+    """True if any synthesis backend is available."""
+    return have_anthropic() or have_gemini()
 
 
 def needs_onboarding() -> bool:

@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Company Brain — Cron + HydraDB Push Playbook</title>
+<style>
+  :root {
+    --bg: #09090f;
+    --surface: #12121c;
+    --surface-2: #181826;
+    --line: #2a2a3d;
+    --ink: #ececf4;
+    --muted: #9494ad;
+    --faint: #63637d;
+    --accent: #7c3aed;
+    --accent-dim: rgba(124, 58, 237, 0.15);
+    --push: #22c55e;
+    --push-dim: rgba(34, 197, 94, 0.12);
+    --pull: #3b82f6;
+    --pull-dim: rgba(59, 130, 246, 0.12);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245, 158, 11, 0.12);
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+
+  .hero {
+    border-bottom: 1px solid var(--line);
+    background: radial-gradient(900px 420px at 70% -20%, rgba(124,58,237,.22), transparent 55%), var(--bg);
+    padding: 48px 24px 36px;
+  }
+  .hero-inner { max-width: 1100px; margin: 0 auto; }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.15; letter-spacing: -.03em; margin: 0 0 12px; }
+  .lead { color: var(--muted); max-width: 720px; margin: 0 0 28px; font-size: 16px; }
+
+  .loop {
+    display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 8px; align-items: center;
+    max-width: 900px; margin-bottom: 28px; font-size: 13px;
+  }
+  @media (max-width: 720px) { .loop { grid-template-columns: 1fr; text-align: center; } .loop .arrow { display: none; } }
+  .loop-box {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .loop-box.push { border-color: rgba(34,197,94,.35); background: var(--push-dim); }
+  .loop-box.store { border-color: rgba(124,58,237,.35); background: var(--accent-dim); }
+  .loop-box.pull { border-color: rgba(59,130,246,.35); background: var(--pull-dim); }
+  .loop-box strong { display: block; font-size: 14px; margin-bottom: 4px; }
+  .loop-box span { color: var(--muted); font-size: 12px; }
+  .arrow { color: var(--faint); font-size: 20px; text-align: center; }
+
+  .layout { max-width: 1100px; margin: 0 auto; padding: 28px 24px 80px; }
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 24px;
+    position: sticky; top: 0; z-index: 10; background: rgba(9,9,15,.92); backdrop-filter: blur(10px);
+    padding: 12px 0;
+  }
+  .search {
+    flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--line);
+    color: var(--ink); border-radius: 10px; padding: 10px 14px; font: inherit; outline: none;
+  }
+  .search:focus { border-color: var(--accent); }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill {
+    font-size: 12px; font-weight: 600; padding: 7px 13px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer;
+  }
+  .pill.on { background: var(--accent-dim); border-color: var(--accent); color: var(--ink); }
+
+  section { margin-bottom: 44px; }
+  .section-head { margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .section-head h2 { margin: 0 0 4px; font-size: 20px; letter-spacing: -.02em; }
+  .section-head p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .verticals {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 32px;
+  }
+  .v-card {
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px;
+  }
+  .v-card h3 { margin: 0 0 6px; font-size: 15px; }
+  .v-card p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .card.hidden { display: none; }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .card-head h3 { margin: 0; font-family: var(--mono); font-size: 15px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; }
+  .badge.push { background: var(--push-dim); color: var(--push); }
+  .badge.pull { background: var(--pull-dim); color: var(--pull); }
+  .badge.hydra { background: var(--accent-dim); color: #c4b5fd; }
+  .badge.gbrain { background: var(--amber-dim); color: var(--amber); }
+
+  .company-q {
+    background: var(--surface-2); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 0 10px 10px 0; font-size: 13px; font-style: italic; color: var(--ink);
+  }
+  .company-q::before { content: "Company asks: "; font-style: normal; font-weight: 600; color: var(--muted); }
+
+  .hydra-why {
+    font-size: 13px; color: var(--muted); padding: 10px 12px; background: rgba(124,58,237,.08);
+    border-radius: 10px; border: 1px solid rgba(124,58,237,.2);
+  }
+  .hydra-why strong { color: #c4b5fd; font-weight: 600; }
+
+  .cases { margin: 0; padding: 0; list-style: none; }
+  .cases li {
+    font-size: 13px; padding: 6px 0 6px 16px; position: relative; border-top: 1px solid rgba(42,42,61,.5);
+  }
+  .cases li:first-child { border-top: 0; }
+  .cases li::before { content: ""; position: absolute; left: 0; top: 12px; width: 6px; height: 6px; border-radius: 50%; background: var(--push); }
+
+  .cmd-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
+  pre.cmd {
+    margin: 0; padding: 10px 12px; border-radius: 10px; background: #0c0c14; border: 1px solid var(--line);
+    font: 11.5px/1.45 var(--mono); color: #c8c8dc; overflow-x: auto; white-space: pre-wrap;
+  }
+  .copy { margin-top: 6px; font-size: 11px; color: var(--accent); cursor: pointer; background: none; border: none; padding: 0; }
+
+  .matrix { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+  .matrix th { text-align: left; padding: 12px 14px; background: var(--surface-2); color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--line); }
+  .matrix td { padding: 12px 14px; border-bottom: 1px solid rgba(42,42,61,.5); vertical-align: top; }
+  .matrix tr:last-child td { border-bottom: 0; }
+  .matrix code { font-family: var(--mono); font-size: 12px; color: #c4b5fd; }
+
+  footer { max-width: 1100px; margin: 0 auto; padding: 24px; border-top: 1px solid var(--line); font-size: 12px; color: var(--faint); text-align: center; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">HydraBrain · HydraDB · Enterprise</div>
+    <h1>What companies do with cron + push memory</h1>
+    <p class="lead">
+      Scheduled jobs <strong style="color:var(--push)">push</strong> institutional knowledge into HydraDB overnight.
+      Agents and employees <strong style="color:var(--pull)">pull</strong> cited answers the next day — no Postgres, no manual graph wiring.
+      Every <code>capture</code> and <code>sync</code> runs with <code>infer=true</code>, so entities and relationships land in the graph automatically.
+    </p>
+
+    <div class="loop">
+      <div class="loop-box push">
+        <strong>Cron PUSH</strong>
+        <span>sync · capture · briefing · export — data flows in on a schedule</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="loop-box store">
+        <strong>HydraDB graph</strong>
+        <span>hybrid recall + native infer — one API, zero local infra</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="loop-box pull">
+        <strong>Agent PULL</strong>
+        <span>think · search · graph · MCP — cited answers at point of work</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+  <div class="toolbar">
+    <input class="search" id="search" type="search" placeholder="Search team, job, use case…" />
+    <div class="filters" id="filters">
+      <button class="pill on" data-filter="all">All teams</button>
+      <button class="pill" data-filter="sales">Sales</button>
+      <button class="pill" data-filter="cs">Customer success</button>
+      <button class="pill" data-filter="eng">Engineering</button>
+      <button class="pill" data-filter="legal">Legal / compliance</button>
+      <button class="pill" data-filter="exec">Leadership</button>
+      <button class="pill" data-filter="ops">Ops / IT</button>
+    </div>
+  </div>
+
+  <!-- BY TEAM -->
+  <section>
+    <div class="section-head">
+      <h2>By company team</h2>
+      <p>Which crons to run, what gets pushed into HydraDB, and what employees get back</p>
+    </div>
+    <div class="verticals">
+      <div class="v-card"><h3>Sales</h3><p>Push call notes + CRM exports. Pull deal history and relationship paths before every meeting.</p></div>
+      <div class="v-card"><h3>Customer success</h3><p>Push support transcripts and QBR notes. Pull account health and open commitments.</p></div>
+      <div class="v-card"><h3>Engineering</h3><p>Push wiki + RFCs + incident postmortems. Pull architecture decisions with citations.</p></div>
+      <div class="v-card"><h3>Legal / compliance</h3><p>Push policy docs + audit logs via export. Pull decision trail for regulators.</p></div>
+      <div class="v-card"><h3>Leadership</h3><p>Push overnight signals via briefing cron. Pull synthesized digests, not raw Slack.</p></div>
+      <div class="v-card"><h3>Ops / IT</h3><p>Push doc sync + health checks. Pull status across tenant namespaces.</p></div>
+    </div>
+  </section>
+
+  <!-- JOB CARDS -->
+  <section>
+    <div class="section-head">
+      <h2>Cron jobs → company outcomes</h2>
+      <p>Each card: business question, HydraDB advantage, concrete use cases, schedule command</p>
+    </div>
+    <div class="grid" id="cards">
+
+      <!-- SYNC -->
+      <article class="card" data-tags="eng ops sales cs sync push hydra">
+        <div class="card-head">
+          <h3>hydrabrain sync</h3>
+          <div class="badges"><span class="badge push">Push in</span><span class="badge hydra">HydraDB</span></div>
+        </div>
+        <div class="company-q">"Why did our last enterprise deal stall — and who internally knows the full story?"</div>
+        <div class="hydra-why"><strong>HydraDB:</strong> Each synced file becomes a memory with <code>infer=true</code> — people, companies, and deals link in the graph without a separate extraction pipeline. Incremental hash dedup means re-runs are cheap.</div>
+        <ul class="cases">
+          <li><strong>Sales:</strong> Sync <code>~/exports/crm-notes</code> with <code>--source sales</code> — reps query "everything on acme-example" before calls</li>
+          <li><strong>Engineering:</strong> Sync Confluence/Notion export nightly — new hires ask agents instead of hunting wikis</li>
+          <li><strong>CS:</strong> Sync QBR decks and ticket summaries — account teams see cited history, not stale spreadsheets</li>
+          <li><strong>Multi-team:</strong> One tenant, separate <code>--source</code> per department — sales never leaks into legal search</li>
+        </ul>
+        <div class="cmd-label">Schedule (every 15 min)</div>
+        <pre class="cmd" data-copy>hydrabrain cron add "*/15 * * * *" "hydrabrain sync ~/company-docs --source wiki"
+hydrabrain cron add "*/30 * * * *" "hydrabrain sync ~/sales-exports --source sales"</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- BRIEFING -->
+      <article class="card" data-tags="exec leadership briefing push pull hydra">
+        <div class="card-head">
+          <h3>hydrabrain briefing</h3>
+          <div class="badges"><span class="badge push">Push out</span><span class="badge pull">Pull digest</span><span class="badge hydra">HydraDB</span></div>
+        </div>
+        <div class="company-q">"What changed across the company since yesterday — without reading 400 Slack threads?"</div>
+        <div class="hydra-why"><strong>HydraDB:</strong> Briefing runs hybrid recall over everything your crons pushed overnight, then Gemini grounds the answer in retrieved chunks — facts come from memory, not hallucination.</div>
+        <ul class="cases">
+          <li><strong>CEO / VP:</strong> Daily 7 AM digest to email or Slack — active deals, open risks, key meetings</li>
+          <li><strong>Department heads:</strong> Topic-scoped: <code>briefing 'pipeline Q2'</code> with <code>--source sales</code></li>
+          <li><strong>Board prep:</strong> Weekly briefing over <code>--source leadership</code> appended to a shared log</li>
+          <li><strong>Async teams:</strong> APAC reads the digest file instead of attending a standup</li>
+        </ul>
+        <div class="cmd-label">Schedule (weekdays 7 AM)</div>
+        <pre class="cmd" data-copy>hydrabrain cron add "0 7 * * 1-5" "hydrabrain briefing >> ~/briefings/daily-$(date +\%Y-\%m-\%d).md"
+hydrabrain cron add "0 7 * * 1"   "hydrabrain briefing 'active deals' --source sales >> ~/briefings/sales-weekly.md"</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- CAPTURE (real-time push, often paired with crons) -->
+      <article class="card" data-tags="sales cs exec capture push hydra">
+        <div class="card-head">
+          <h3>hydrabrain capture</h3>
+          <div class="badges"><span class="badge push">Push in</span><span class="badge hydra">HydraDB</span></div>
+        </div>
+        <div class="company-q">"We just decided X in a meeting — how do we make sure every agent knows tomorrow?"</div>
+        <div class="hydra-why"><strong>HydraDB:</strong> One-line decisions pushed via MCP <code>capture</code> or CLI instantly enter the graph. No embed step, no schema migration — <code>infer=true</code> wires entities on write.</div>
+        <ul class="cases">
+          <li><strong>Post-meeting:</strong> Agent captures "Committed to acme-example: 20% discount if signed by Q2" — searchable next morning</li>
+          <li><strong>Support escalation:</strong> Capture root cause + fix — next ticket on same account gets context via <code>think</code></li>
+          <li><strong>Product:</strong> Capture ship/no-ship rationale — eng agents cite it in future RFC discussions</li>
+          <li><strong>Cron complement:</strong> Pair with sync — bulk docs on schedule, decisions captured in real time</li>
+        </ul>
+        <div class="cmd-label">Agent MCP (no cron — push at decision time)</div>
+        <pre class="cmd" data-copy>hydrabrain capture "Decision: widget-co pricing tier B for fund-a portfolio companies. Owner: sales-lead. Date: 2026-06-22."</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- THINK / MCP PULL -->
+      <article class="card" data-tags="sales cs eng exec pull hydra">
+        <div class="card-head">
+          <h3>think + MCP (agent pull)</h3>
+          <div class="badges"><span class="badge pull">Pull out</span><span class="badge hydra">HydraDB</span></div>
+        </div>
+        <div class="company-q">"I'm on a customer call in 5 minutes — what do we know, with sources?"</div>
+        <div class="hydra-why"><strong>HydraDB:</strong> <code>think</code> retrieves via hybrid recall + graph context in one call, then synthesizes with citations. Relational questions ("who at fund-a have we met who invested in competitors?") hit the native graph.</div>
+        <ul class="cases">
+          <li><strong>Sales:</strong> Cursor/Hermes agent runs <code>think</code> before every external meeting</li>
+          <li><strong>CS:</strong> Support copilot queries account history — cited snippets, not guesswork</li>
+          <li><strong>Engineering:</strong> "Why did we choose Postgres over Dynamo for service X?" — pulls RFC + incident notes</li>
+          <li><strong>Onboarding:</strong> New hire's agent has MCP access to <code>--source handbook</code> from day one</li>
+        </ul>
+        <div class="cmd-label">Wire once per agent host</div>
+        <pre class="cmd" data-copy>claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
+# Agents call: think, search, graph, capture</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- EXPORT -->
+      <article class="card" data-tags="legal compliance ops export push hydra">
+        <div class="card-head">
+          <h3>hydrabrain export</h3>
+          <div class="badges"><span class="badge push">Push out</span><span class="badge hydra">HydraDB</span></div>
+        </div>
+        <div class="company-q">"Auditors want a point-in-time snapshot of what the company brain knew on date X."</div>
+        <div class="hydra-why"><strong>HydraDB:</strong> Export dumps a namespace to Markdown + <code>manifest.json</code> — portable, reviewable, not locked in a proprietary format. Proves memory is auditable.</div>
+        <ul class="cases">
+          <li><strong>Compliance:</strong> Weekly cron export of <code>--source legal</code> to immutable storage</li>
+          <li><strong>Disaster recovery:</strong> Sunday backup of full tenant before schema changes</li>
+          <li><strong>M&amp;A:</strong> Export diligence namespace when deal closes — handoff to acquirer</li>
+          <li><strong>Data residency:</strong> Proof of what left the hosted store and when</li>
+        </ul>
+        <div class="cmd-label">Schedule (weekly)</div>
+        <pre class="cmd" data-copy>hydrabrain cron add "0 0 * * 0" "hydrabrain export ~/brain-backups/$(date +\%Y-\%m-\%d) --source wiki"</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- READ URL -->
+      <article class="card" data-tags="eng sales ops read push hydra">
+        <div class="card-head">
+          <h3>hydrabrain read + web UI</h3>
+          <div class="badges"><span class="badge push">Push in</span><span class="badge hydra">HydraDB</span></div>
+        </div>
+        <div class="company-q">"Competitor just announced pricing — get it into institutional memory in 30 seconds."</div>
+        <div class="hydra-why"><strong>HydraDB:</strong> Articles, tweets (free oEmbed), and YouTube transcripts ingest via connectors → <code>add_memory(infer=true)</code>. No auth setup for public URLs.</div>
+        <ul class="cases">
+          <li><strong>Competitive intel:</strong> PMM pastes competitor blog URL — team queries it next week via <code>search</code></li>
+          <li><strong>Research:</strong> Cron-friendly: drop URLs in a folder + script loop, or use <code>hydrabrain web</code> for demos</li>
+          <li><strong>Sales:</strong> Push prospect's latest funding announcement before outreach</li>
+          <li><strong>All-hands:</strong> Push recorded talk transcript — employees chat with cited answers</li>
+        </ul>
+        <div class="cmd-label">One-shot or scripted push</div>
+        <pre class="cmd" data-copy>hydrabrain read https://example.com/competitor-pricing-update
+hydrabrain web --open   # paste links in browser UI</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- STATUS -->
+      <article class="card" data-tags="ops it status hydra">
+        <div class="card-head">
+          <h3>hydrabrain status</h3>
+          <div class="badges"><span class="badge hydra">HydraDB</span></div>
+        </div>
+        <div class="company-q">"Is the company brain healthy — and are crons actually running?"</div>
+        <div class="hydra-why"><strong>HydraDB:</strong> Live tenant + memory count from API — no local DB to corrupt. <code>doctor</code> flags missing cron jobs and suggests fixes.</div>
+        <ul class="cases">
+          <li><strong>Ops:</strong> Daily health cron → pipe to Datadog/PagerDuty if memory count flatlines</li>
+          <li><strong>IT:</strong> Verify HydraDB key + tenant before rolling out MCP to 50 agents</li>
+          <li><strong>Post-incident:</strong> Confirm sync cron resumed after outage</li>
+        </ul>
+        <div class="cmd-label">Schedule (daily 6 AM)</div>
+        <pre class="cmd" data-copy>hydrabrain cron add "0 6 * * *" "hydrabrain status >> ~/brain-health.log"</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- GBRAIN AUTOPILOT (for teams on full gbrain stack) -->
+      <article class="card" data-tags="ops eng gbrain autopilot">
+        <div class="card-head">
+          <h3>gbrain autopilot</h3>
+          <div class="badges"><span class="badge push">Push in</span><span class="badge gbrain">gbrain TS</span></div>
+        </div>
+        <div class="company-q">"We run the full gbrain stack on Postgres — keep the git brain synced without babysitting."</div>
+        <div class="hydra-why"><strong>vs HydraDB:</strong> Autopilot is the upstream TS daemon (sync → extract → embed). HydraBrain teams skip Postgres entirely — use <code>hydrabrain sync</code> crons instead. Same push intent, different backend.</div>
+        <ul class="cases">
+          <li><strong>Self-hosted brain:</strong> One install: <code>gbrain autopilot --install</code> → launchd/systemd/crontab</li>
+          <li><strong>Git-backed wiki:</strong> Brain repo stays embedded and extracted on interval</li>
+          <li><strong>Pair with dream:</strong> Add nightly <code>gbrain dream</code> for entity enrichment</li>
+        </ul>
+        <div class="cmd-label">Install once</div>
+        <pre class="cmd" data-copy>gbrain autopilot --install
+0 2 * * * gbrain dream >> ~/.gbrain/dream.log 2>&1</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- MEETING SYNC RECIPE -->
+      <article class="card" data-tags="sales cs exec meeting recipe push">
+        <div class="card-head">
+          <h3>meeting-sync (recipe)</h3>
+          <div class="badges"><span class="badge push">Push in</span><span class="badge gbrain">DIY</span></div>
+        </div>
+        <div class="company-q">"Every customer call should update the account brain — automatically."</div>
+        <div class="hydra-why"><strong>HydraDB path:</strong> Point meeting transcript export folder at <code>hydrabrain sync --source meetings</code>. With infer, attendees and companies link in the graph — <code>graph</code> MCP tool walks relationships.</div>
+        <ul class="cases">
+          <li><strong>Revenue org:</strong> 3×/day sync from Granola/Fathom export → deal pages stay current</li>
+          <li><strong>CS:</strong> QBR transcripts push commitments — "what did we promise acme-example?" is answerable</li>
+          <li><strong>Leadership:</strong> Board prep pulls cross-account patterns from meeting graph</li>
+        </ul>
+        <div class="cmd-label">DIY cron (gbrain recipe) or HydraDB sync</div>
+        <pre class="cmd" data-copy># HydraBrain (simplest):
+hydrabrain cron add "0 10,16,21 * * 1-5" "hydrabrain sync ~/meetings --source meetings"
+# Full gbrain recipe:
+0 10,16,21 * * 1-5 node meeting-sync.mjs</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- EMAIL RECIPE -->
+      <article class="card" data-tags="sales exec email recipe push">
+        <div class="card-head">
+          <h3>email-collector (recipe)</h3>
+          <div class="badges"><span class="badge push">Push in</span><span class="badge gbrain">DIY</span></div>
+        </div>
+        <div class="company-q">"Important founder emails should enrich our people pages without manual copy-paste."</div>
+        <div class="hydra-why"><strong>HydraDB path:</strong> Email digest script → <code>hydrabrain capture</code> per thread. Graph connects sender to company pages already synced from CRM.</div>
+        <ul class="cases">
+          <li><strong>Exec assistant:</strong> 30-min scan → push priority threads → morning briefing surfaces them</li>
+          <li><strong>BD:</strong> Inbound partnership emails auto-captured with entity extraction</li>
+          <li><strong>Founder-led sales:</strong> Every founder reply becomes searchable institutional memory</li>
+        </ul>
+        <div class="cmd-label">Recipe cron (DIY collector)</div>
+        <pre class="cmd" data-copy>*/30 * * * * cd /path/to/email-collector && node email-collector.mjs collect && node email-collector.mjs digest
+# Or push captures from your script:
+# hydrabrain capture "$(extract_thread_body)"</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- DREAM -->
+      <article class="card" data-tags="exec ops eng dream push gbrain">
+        <div class="card-head">
+          <h3>gbrain dream (nightly)</h3>
+          <div class="badges"><span class="badge push">Push in</span><span class="badge gbrain">gbrain TS</span></div>
+        </div>
+        <div class="company-q">"Agents talked to 50 customers today — nothing should be lost by morning."</div>
+        <div class="hydra-why"><strong>HydraDB equivalent:</strong> No dream cycle ported yet. Use <code>capture</code> during sessions + <code>sync</code> crons + <code>briefing</code> for overnight synthesis. Upstream gbrain runs 8-phase dream on PGLite/Postgres.</div>
+        <ul class="cases">
+          <li><strong>gbrain shops:</strong> Nightly entity sweep, citation fixes, pattern consolidation</li>
+          <li><strong>HydraBrain shops:</strong> Nightly <code>briefing</code> + aggressive <code>capture</code> via agent MCP</li>
+          <li><strong>Both:</strong> The brain compounds because push jobs run while employees sleep</li>
+        </ul>
+        <div class="cmd-label">gbrain only (2 AM)</div>
+        <pre class="cmd" data-copy>0 2 * * * gbrain dream >> ~/.gbrain/dream.log 2>&1
+# HydraBrain substitute:
+0 2 * * * hydrabrain briefing >> ~/briefings/overnight.md</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+      <!-- GRAPH -->
+      <article class="card" data-tags="sales cs eng graph pull hydra">
+        <div class="card-head">
+          <h3>graph (MCP pull)</h3>
+          <div class="badges"><span class="badge pull">Pull out</span><span class="badge hydra">HydraDB</span></div>
+        </div>
+        <div class="company-q">"Who connects us to widget-co — and through which investors?"</div>
+        <div class="hydra-why"><strong>HydraDB:</strong> Native graph from <code>infer=true</code> on every push — no hand-rolled extractor. Relational queries that flat search misses become first-class.</div>
+        <ul class="cases">
+          <li><strong>Sales:</strong> Warm intro paths before outbound to a target account</li>
+          <li><strong>Investor relations:</strong> Map LP → portfolio → customer overlap</li>
+          <li><strong>Partnerships:</strong> See which meetings mentioned both parties</li>
+          <li><strong>Due diligence:</strong> Entity neighborhood after bulk sync of data room</li>
+        </ul>
+        <div class="cmd-label">Agent or CLI</div>
+        <pre class="cmd" data-copy>hydrabrain graph --source sales
+# MCP tool: graph(source_id="sales")</pre>
+        <button class="copy" type="button">Copy</button>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- PUSH vs PULL MATRIX -->
+  <section>
+    <div class="section-head">
+      <h2>Company starter: push schedule + pull surfaces</h2>
+      <p>What to cron on day one for a 25-person company on HydraBrain + HydraDB</p>
+    </div>
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Push (cron → HydraDB)</th>
+          <th>Who pulls</th>
+          <th>Business outcome</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Every 15 min</td>
+          <td><code>sync ~/docs --source wiki</code></td>
+          <td>All agents via MCP <code>search</code></td>
+          <td>Handbook always current — onboarding questions answered with citations</td>
+        </tr>
+        <tr>
+          <td>Every 30 min</td>
+          <td><code>sync ~/sales --source sales</code></td>
+          <td>Reps via <code>think</code> before calls</td>
+          <td>Deal intel pushed in; reps pull context at point of work</td>
+        </tr>
+        <tr>
+          <td>Real time</td>
+          <td><code>capture</code> on decisions (MCP)</td>
+          <td>Next agent turn / next day briefing</td>
+          <td>Meeting outcomes don't die in chat logs</td>
+        </tr>
+        <tr>
+          <td>Daily 7 AM</td>
+          <td><code>briefing</code> → file or Slack</td>
+          <td>Leadership reads digest</td>
+          <td>Exec team starts aligned — no 90-min standup</td>
+        </tr>
+        <tr>
+          <td>Weekly</td>
+          <td><code>export</code> → backup folder</td>
+          <td>Legal / compliance review</td>
+          <td>Auditable snapshot; exit path from hosted store</td>
+        </tr>
+        <tr>
+          <td>Daily 6 AM</td>
+          <td><code>status</code> → monitoring</td>
+          <td>Ops on-call</td>
+          <td>Brain health visible — crons didn't silently stop</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top: 20px" class="grid">
+      <article class="card" data-tags="ops exec starter">
+        <div class="card-head"><h3>Copy-paste: full company pack</h3></div>
+        <pre class="cmd" data-copy># --- HydraBrain company brain (3 crons + MCP) ---
+hydrabrain cron add "*/15 * * * *" "hydrabrain sync ~/company-docs --source wiki"
+hydrabrain cron add "*/30 * * * *" "hydrabrain sync ~/sales-exports --source sales"
+hydrabrain cron add "0 7 * * 1-5"   "hydrabrain briefing >> ~/briefings/daily.md"
+hydrabrain cron add "0 0 * * 0"     "hydrabrain export ~/backups/weekly"
+hydrabrain cron add "0 6 * * *"     "hydrabrain status >> ~/brain-health.log"
+claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve</pre>
+        <button class="copy" type="button">Copy full pack</button>
+      </article>
+    </div>
+  </section>
+
+  <!-- WHY HYDRADB -->
+  <section>
+    <div class="section-head">
+      <h2>Why HydraDB for company crons</h2>
+      <p>What you skip vs running upstream gbrain on Postgres/PGLite</p>
+    </div>
+    <table class="matrix">
+      <thead>
+        <tr><th>Company need</th><th>Without HydraDB (gbrain TS)</th><th>With HydraDB (HydraBrain)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Get started in 30 min</td>
+          <td>Bun + PGLite or Postgres + embed keys + migrations</td>
+          <td><code>pip install</code> + one HydraDB API key + <code>hydrabrain init</code></td>
+        </tr>
+        <tr>
+          <td>Graph from pushed docs</td>
+          <td>sync → extract → embed pipeline + extractor code</td>
+          <td><code>infer=true</code> on every sync/capture — native graph</td>
+        </tr>
+        <tr>
+          <td>Multi-team isolation</td>
+          <td>sources table + Postgres RLS (company-brain tutorial)</td>
+          <td><code>--source</code> → HydraDB <code>sub_tenant_id</code> namespaces</td>
+        </tr>
+        <tr>
+          <td>Agent fleet (50 seats)</td>
+          <td>MCP + shared Postgres pool tuning</td>
+          <td>Same MCP tools; hosted API scales; no DB ops</td>
+        </tr>
+        <tr>
+          <td>Relational questions</td>
+          <td>Graph extractor + relational retrieval knob</td>
+          <td>One <code>recall</code> + <code>graph</code> call — benchmarked 96.5% R@5</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<footer>
+  HydraBrain enterprise playbook · <a href="https://hydradb.com">HydraDB</a> ·
+  <a href="../CONTEXT-MEMORY.md">CONTEXT-MEMORY.md</a> ·
+  <a href="../docs/guides/cron-schedule.md">cron-schedule.md</a>
+</footer>
+
+<script>
+(function () {
+  const cards = document.querySelectorAll('.card[data-tags]');
+  const pills = document.querySelectorAll('.pill');
+  const search = document.getElementById('search');
+  let activeFilter = 'all';
+
+  const teamMap = {
+    all: () => true,
+    sales: (t) => /sales|deal|crm|revenue|bd/.test(t),
+    cs: (t) => /cs|customer|support|account|qbr/.test(t),
+    eng: (t) => /eng|wiki|rfc|architecture|incident/.test(t),
+    legal: (t) => /legal|compliance|audit|export/.test(t),
+    exec: (t) => /exec|leadership|ceo|briefing|board/.test(t),
+    ops: (t) => /ops|it|status|autopilot|health/.test(t),
+  };
+
+  function apply() {
+    const q = search.value.trim().toLowerCase();
+    cards.forEach((card) => {
+      const tags = (card.dataset.tags || '').toLowerCase();
+      const text = card.textContent.toLowerCase();
+      const okFilter = teamMap[activeFilter] ? teamMap[activeFilter](tags + ' ' + text) : true;
+      const okSearch = !q || text.includes(q) || tags.includes(q);
+      card.classList.toggle('hidden', !(okFilter && okSearch));
+    });
+  }
+
+  pills.forEach((p) => p.addEventListener('click', () => {
+    pills.forEach((x) => x.classList.remove('on'));
+    p.classList.add('on');
+    activeFilter = p.dataset.filter;
+    apply();
+  }));
+  search.addEventListener('input', apply);
+
+  document.querySelectorAll('.copy').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const pre = btn.previousElementSibling?.matches('pre') ? btn.previousElementSibling : btn.parentElement.querySelector('pre');
+      const text = pre?.dataset?.copy || pre?.textContent || '';
+      navigator.clipboard.writeText(text.trim()).then(() => {
+        const o = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = o; }, 1200);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

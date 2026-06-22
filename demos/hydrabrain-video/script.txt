@@ -1,0 +1,11 @@
+Your company runs on knowledge scattered everywhere. Slack threads. Google Docs. CRM notes. Meeting transcripts. But when your team asks an AI agent a question, it searches stale context, misses relationships, and hallucinates.
+
+Who invested in this startup? What did we promise the customer last quarter? Traditional vector search cannot connect the dots. And building a company brain on Postgres? Weeks of infrastructure before anyone gets value.
+
+HydraBrain changes the model. One pip install. One HydraDB API key. Zero local database. Institutional memory backed by a native knowledge graph.
+
+Scheduled jobs push knowledge in while you sleep. Sync your wiki every fifteen minutes. Capture decisions the moment they are made. Every ingest builds the graph automatically with infer equals true.
+
+The next morning, agents pull cited answers. Search. Think. Graph traversal. Wire MCP once, and every agent shares the same brain. Leadership gets a synthesized briefing, not four hundred Slack threads.
+
+On hard relational benchmarks, HydraDB hits ninety-six point five percent recall. A twenty-five person company can go live in thirty minutes. Push overnight. Pull with citations. That is HydraBrain.

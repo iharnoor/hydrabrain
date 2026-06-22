@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        margin: 0; width: 1920px; height: 1080px;
+        overflow: hidden; background: #09090f;
+        font-family: Helvetica, Arial, sans-serif;
+      }
+      code, pre, .mono { font-family: "Courier New", Courier, monospace; }
+
+      #root { position: relative; width: 1920px; height: 1080px; }
+
+      .bg {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(900px 500px at 75% -10%, rgba(124,58,237,.28), transparent 55%),
+          radial-gradient(700px 400px at 5% 100%, rgba(59,130,246,.1), transparent 50%),
+          #09090f;
+      }
+
+      .grain {
+        position: absolute; inset: 0; opacity: .06; pointer-events: none;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      .scene { position: absolute; inset: 0; padding: 80px 100px; opacity: 0; }
+      .eyebrow {
+        font-size: 13px; font-weight: 700; letter-spacing: .14em;
+        text-transform: uppercase; color: #7c3aed; margin-bottom: 18px;
+      }
+      .headline {
+        font-size: 64px; font-weight: 700; line-height: 1.08;
+        letter-spacing: -.03em; color: #ececf4; max-width: 1100px;
+      }
+      .sub {
+        margin-top: 22px; font-size: 26px; line-height: 1.45;
+        color: #9494ad; max-width: 920px;
+      }
+
+      .pill-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 36px; }
+      .pill {
+        font-size: 15px; font-weight: 600; padding: 10px 18px; border-radius: 999px;
+        border: 1px solid #2a2a3d; background: rgba(18,18,28,.9); color: #c8c8dc;
+      }
+      .pill.bad { border-color: rgba(239,68,68,.35); color: #fca5a5; background: rgba(239,68,68,.08); }
+      .pill.good { border-color: rgba(34,197,94,.35); color: #86efac; background: rgba(34,197,94,.08); }
+      .pill.accent { border-color: rgba(124,58,237,.5); color: #ddd6fe; background: rgba(124,58,237,.12); }
+
+      .split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; height: 100%; padding-top: 40px; }
+      .terminal {
+        background: #0c0c14; border: 1px solid #2a2a3d; border-radius: 18px;
+        padding: 28px 32px; font-size: 17px; line-height: 1.65; color: #c8c8dc;
+        box-shadow: 0 24px 80px rgba(0,0,0,.45);
+      }
+      .terminal .prompt { color: #7c3aed; }
+      .terminal .comment { color: #63637d; }
+      .terminal .ok { color: #22c55e; }
+
+      .loop {
+        display: grid; grid-template-columns: 1fr 40px 1fr 40px 1fr; gap: 8px;
+        align-items: stretch; margin-top: 40px;
+      }
+      .loop-box {
+        border-radius: 16px; padding: 28px 24px; border: 1px solid #2a2a3d;
+        background: rgba(18,18,28,.85);
+      }
+      .loop-box.push { border-color: rgba(34,197,94,.4); background: rgba(34,197,94,.08); }
+      .loop-box.store { border-color: rgba(124,58,237,.45); background: rgba(124,58,237,.1); }
+      .loop-box.pull { border-color: rgba(59,130,246,.4); background: rgba(59,130,246,.08); }
+      .loop-box h4 { font-size: 22px; color: #ececf4; margin-bottom: 8px; }
+      .loop-box p { font-size: 16px; color: #9494ad; line-height: 1.45; }
+      .loop-arrow { display: flex; align-items: center; justify-content: center; font-size: 28px; color: #63637d; }
+
+      .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 48px; }
+      .stat {
+        border: 1px solid #2a2a3d; border-radius: 16px; padding: 28px 24px;
+        background: rgba(18,18,28,.9);
+      }
+      .stat .n { font-size: 48px; font-weight: 700; color: #7c3aed; letter-spacing: -.02em; }
+      .stat .l { font-size: 15px; color: #9494ad; margin-top: 6px; }
+
+      .logo-mark {
+        position: absolute; top: 48px; right: 100px;
+        font-size: 18px; font-weight: 700; color: #ececf4; letter-spacing: -.02em;
+      }
+      .logo-mark span { color: #7c3aed; }
+
+      .cta {
+        display: inline-block; margin-top: 40px; padding: 16px 32px;
+        border-radius: 12px; background: #7c3aed; color: #fff;
+        font-size: 20px; font-weight: 650;
+      }
+
+      .progress-bar {
+        position: absolute; bottom: 0; left: 0; height: 4px; width: 0;
+        background: linear-gradient(90deg, #7c3aed, #a855f7);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080">
+
+      <div id="bg" class="bg clip" data-start="0" data-duration="78" data-track-index="0"></div>
+      <div id="grain" class="grain clip" data-start="0" data-duration="78" data-track-index="1"></div>
+      <div id="logo" class="logo-mark clip" data-start="0" data-duration="78" data-track-index="2">🧠 <span>hydrabrain</span></div>
+      <div id="progress" class="progress-bar clip" data-start="0" data-duration="78" data-track-index="3"></div>
+
+      <!-- SCENE 1: Problem -->
+      <div id="s1" class="scene clip" data-start="0" data-duration="12" data-track-index="4">
+        <div class="eyebrow">The problem</div>
+        <h1 class="headline">Company knowledge is everywhere.<br/>Useful answers are nowhere.</h1>
+        <p class="sub">Slack · Docs · CRM · Meetings — but agents search stale context, miss relationships, and hallucinate.</p>
+        <div class="pill-row">
+          <span class="pill bad">Scattered docs</span>
+          <span class="pill bad">Stale agent context</span>
+          <span class="pill bad">No relationship recall</span>
+        </div>
+      </div>
+
+      <!-- SCENE 2: Deeper pain -->
+      <div id="s2" class="scene clip" data-start="12" data-duration="10" data-track-index="4">
+        <div class="eyebrow">Why vector search fails companies</div>
+        <h1 class="headline">"Who invested in widget-co?"<br/>"What did we promise acme-example?"</h1>
+        <p class="sub">Flat search cannot connect people, deals, and commitments. Postgres + pgvector stacks take weeks before teams see value.</p>
+        <div class="pill-row">
+          <span class="pill bad">Keyword similarity ≠ graph</span>
+          <span class="pill bad">Weeks of infra</span>
+        </div>
+      </div>
+
+      <!-- SCENE 3: Solution -->
+      <div id="s3" class="scene clip" data-start="22" data-duration="10" data-track-index="4">
+        <div class="split">
+          <div>
+            <div class="eyebrow">The solution</div>
+            <h1 class="headline">HydraBrain on HydraDB</h1>
+            <p class="sub">One pip install. One API key. Native knowledge graph on every capture — no hand-rolled extractor.</p>
+            <div class="pill-row">
+              <span class="pill good">Zero local Postgres</span>
+              <span class="pill accent">infer=true graph</span>
+              <span class="pill good">96.5% recall@5</span>
+            </div>
+          </div>
+          <div class="terminal mono" id="term1">
+            <div><span class="prompt">$</span> pip install hydrabrain</div>
+            <div><span class="prompt">$</span> hydrabrain init</div>
+            <div><span class="prompt">$</span> hydrabrain capture "Acme seed round closed Q2"</div>
+            <div class="ok">✓ graph wired natively</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 4: Push -->
+      <div id="s4" class="scene clip" data-start="32" data-duration="16" data-track-index="4">
+        <div class="eyebrow">Overnight — cron PUSH</div>
+        <h1 class="headline" style="font-size:52px">While you sleep, the brain fills itself.</h1>
+        <div class="loop">
+          <div class="loop-box push">
+            <h4>sync</h4>
+            <p>Wiki & CRM exports every 15 min → HydraDB</p>
+          </div>
+          <div class="loop-arrow">→</div>
+          <div class="loop-box store">
+            <h4>HydraDB</h4>
+            <p>Hybrid recall + native graph</p>
+          </div>
+          <div class="loop-arrow">→</div>
+          <div class="loop-box push">
+            <h4>capture</h4>
+            <p>Decisions pushed in real time via MCP</p>
+          </div>
+        </div>
+        <div class="terminal mono" style="margin-top:28px;font-size:15px" id="term2">
+          <span class="comment"># 3-cron company starter</span><br/>
+          hydrabrain cron add "*/15 * * * *" "hydrabrain sync ~/docs --source wiki"<br/>
+          hydrabrain cron add "0 7 * * 1-5" "hydrabrain briefing >> ~/daily.md"
+        </div>
+      </div>
+
+      <!-- SCENE 5: Pull -->
+      <div id="s5" class="scene clip" data-start="48" data-duration="14" data-track-index="4">
+        <div class="eyebrow">Morning — agent PULL</div>
+        <h1 class="headline" style="font-size:52px">Cited answers at the point of work.</h1>
+        <div class="loop">
+          <div class="loop-box pull">
+            <h4>think</h4>
+            <p>Sales prep before every call</p>
+          </div>
+          <div class="loop-arrow">+</div>
+          <div class="loop-box pull">
+            <h4>graph</h4>
+            <p>Warm intros & investor paths</p>
+          </div>
+          <div class="loop-arrow">+</div>
+          <div class="loop-box pull">
+            <h4>briefing</h4>
+            <p>Leadership digest — not 400 Slack threads</p>
+          </div>
+        </div>
+        <div class="pill-row">
+          <span class="pill accent">MCP: capture · search · think · graph</span>
+          <span class="pill good">Cursor · Hermes · Claude</span>
+        </div>
+      </div>
+
+      <!-- SCENE 6: Proof + CTA -->
+      <div id="s6" class="scene clip" data-start="62" data-duration="16" data-track-index="4">
+        <div class="eyebrow">Proof & path to live</div>
+        <h1 class="headline" style="font-size:56px">Push overnight. Pull with citations.</h1>
+        <div class="stats">
+          <div class="stat"><div class="n">96.5%</div><div class="l">recall@5 vs real gbrain</div></div>
+          <div class="stat"><div class="n">30 min</div><div class="l">25-person company to live</div></div>
+          <div class="stat"><div class="n">0</div><div class="l">Postgres servers to run</div></div>
+        </div>
+        <div class="cta">pip install hydrabrain · hydradb.com</div>
+      </div>
+
+      <audio id="narration" data-start="0" data-track-index="5" src="./assets/narration.wav"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const scenes = ["#s1", "#s2", "#s3", "#s4", "#s5", "#s6"];
+      const timings = [0, 12, 22, 32, 48, 62];
+      const durations = [12, 10, 10, 16, 14, 16];
+
+      scenes.forEach((sel, i) => {
+        const start = timings[i];
+        const dur = durations[i];
+        tl.fromTo(sel, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, start);
+        tl.to(sel, { opacity: 0, y: -16, duration: 0.5, ease: "power2.in" }, start + dur - 0.5);
+      });
+
+      tl.fromTo("#term1", { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 0.8, ease: "power2.out" }, 24);
+      tl.fromTo("#term2", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, 36);
+      tl.to("#progress", { width: "100%", duration: 78, ease: "none" }, 0);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

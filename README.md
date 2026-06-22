@@ -87,7 +87,7 @@
 | Reports / briefing | ✅ | `hydrabrain briefing [topic]` — synthesized digest over memory |
 | Chat over `think()` (REPL + **web UI**) | ✅ | `hydrabrain chat` REPL **and** `hydrabrain web` — zero-dep creator UI (add link/note, cited chat) |
 | **Onboarding / first-run key setup** | ✅ | `hydrabrain init` + web setup screen, **Free mode vs. keys** choice, writes `~/.hydrabrain/.env` (chmod 600), validates HydraDB live, first-run guard |
-| Cron / scheduling | ⬜ | covered today by OS cron + `hydrabrain briefing`/`sync`; no built-in daemon |
+| Cron / scheduling | 🟡 | `hydrabrain cron add/list/remove` + OS crontab; no pre-wired jobs — see [Company cron playbook](demos/cron-playbook.html) |
 | Identity / access control / trust boundary | ◐ | largely **delegated to HydraDB** (API key + tenant/sub_tenant isolation); no per-op trust flags yet |
 | Advisor / skillpacks | ⬜ | gbrain-specific; low north-star value — deferred |
 | Data-migration ETL (real gbrain brain → HydraDB) | — | **out of scope** — this is a capability migration, not a data move |
@@ -221,6 +221,50 @@ except for the API calls it makes to your own brain).
 
 Endpoints (all JSON, for embedding elsewhere): `GET /api/status` · `POST /api/read` ·
 `POST /api/capture` · `POST /api/think` · `POST /api/search`.
+
+---
+
+## 🏢 Company brain — cron + push playbook
+
+Scheduled jobs **push** institutional knowledge into HydraDB (`sync`, `capture`, `read`).
+Agents and employees **pull** cited answers the next day (`think`, `search`, `graph` via MCP).
+Every ingest runs with `infer=True`, so people, companies, and deals link in the graph without a
+separate extraction pipeline.
+
+**Interactive guide:** [`demos/cron-playbook.html`](demos/cron-playbook.html) — filter by team
+(Sales · CS · Engineering · Legal · Leadership · Ops), copy-paste cron packs, and HydraDB vs
+gbrain TS comparison. Open locally:
+
+```bash
+open demos/cron-playbook.html
+```
+
+**Honest default:** fresh install ships **zero** crontab entries. A 25-person company can be
+live in ~30 minutes with three pushes + MCP:
+
+```bash
+hydrabrain cron add "*/15 * * * *" "hydrabrain sync ~/company-docs --source wiki"
+hydrabrain cron add "0 7 * * 1-5"   "hydrabrain briefing >> ~/briefings/daily.md"
+hydrabrain cron add "0 0 * * 0"     "hydrabrain export ~/backups/weekly"
+claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
+```
+
+| Cron (push) | Who pulls | Company outcome |
+|---|---|---|
+| `sync` every 15–30 min | Agents via MCP `search` | Wiki / CRM / meeting exports stay current |
+| `capture` at decision time | Next `think` / morning `briefing` | Meeting outcomes don't die in chat |
+| `briefing` daily 7 AM | Leadership reads digest | Exec team aligned without a 90-min standup |
+| `export` weekly | Legal / compliance | Auditable snapshot; portable exit path |
+
+Upstream gbrain's reference schedule (email, meetings, dream cycle) lives in
+[`docs/guides/cron-schedule.md`](docs/guides/cron-schedule.md) and
+[`recipes/`](recipes/) — DIY collectors, not pre-installed. Opt-in daemon:
+`gbrain autopilot --install` (one maintenance loop, not 50+ jobs).
+
+**Video explainer (HyperFrames):** [`demos/hydrabrain-video/`](demos/hydrabrain-video/) — 78-second
+problem → solution journey (scattered knowledge → cron push → HydraDB graph → agent pull).
+Preview with `cd demos/hydrabrain-video && npm run dev`, render with `npm run render`, or open
+[`output/hydrabrain-enterprise.mp4`](demos/hydrabrain-video/output/hydrabrain-enterprise.mp4) after rendering.
 
 ---
 
@@ -439,7 +483,8 @@ python3 -m bench.longmemeval --data bench/data/longmemeval_s_cleaned.json --limi
 | Reports / briefing | `brain.briefing(topic)` / `hydrabrain briefing` |
 | Export / portability | `brain.export(dir)` / `hydrabrain export <dir>` → Markdown + manifest |
 | Chat | `hydrabrain chat` (REPL) **and** `hydrabrain web` (zero-dep web UI for creators) |
-| CLI | `hydrabrain` — 16 cmds: init/status/capture/ingest/sync/read/search/think/chat/web/briefing/enrich/graph/export/serve/bench |
+| Cron / scheduling | `hydrabrain cron add/list/remove` — OS crontab wrapper; [playbook](demos/cron-playbook.html) |
+| CLI | `hydrabrain` — init/status/capture/ingest/sync/read/search/think/chat/web/briefing/enrich/graph/export/cron/jobs/serve/bench |
 
 ### CLI
 
@@ -461,6 +506,8 @@ python3 -m hydrabrain.cli briefing "coffee"         # synthesized digest on a to
 python3 -m hydrabrain.cli enrich "..."              # summary + tags + entities
 python3 -m hydrabrain.cli export ./brain-backup     # dump brain to Markdown + manifest
 python3 -m hydrabrain.cli --source blog sync ~/posts  # scope to a source namespace
+python3 -m hydrabrain.cli cron add "0 7 * * 1-5" "hydrabrain briefing >> ~/briefings/daily.md"
+python3 -m hydrabrain.cli cron list
 python3 -m hydrabrain.cli serve         # MCP stdio server
 ```
 
@@ -559,6 +606,9 @@ bench/
   run_bench.py     Benchmark #1 — recall@5 / MRR / LLM-judge   → report.html
   longmemeval.py   Benchmark #2 — LongMemEval QA + evidence    → longmemeval_report.html
   data/            LongMemEval splits (oracle auto-downloaded; _s on demand)
+demos/
+  cron-playbook.html        interactive enterprise guide — cron push → HydraDB → agent pull
+  hydrabrain-video/         HyperFrames explainer video (problem → solution, ~78s MP4)
 ```
 
 ## Next steps (toward the north star)

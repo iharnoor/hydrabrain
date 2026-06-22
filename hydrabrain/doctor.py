@@ -14,10 +14,16 @@ def run(engine) -> list[dict]:
     chk("hydradb_key", bool(config.HYDRADB_API_KEY),
         "set" if config.HYDRADB_API_KEY else "missing — run `hydrabrain init`")
 
-    # 2. Gemini key
-    chk("gemini_key", bool(config.GEMINI_API_KEY),
-        "set (think/enrich/briefing available)" if config.GEMINI_API_KEY
-        else "missing — think/enrich degraded. Get one free at aistudio.google.com/apikey")
+    # 2. LLM key (Claude preferred, Gemini fallback)
+    from . import llm as _llm
+    provider = _llm.active_provider()
+    llm_ok = provider != "none"
+    detail = {
+        "claude": f"Anthropic key set — using {config.ANTHROPIC_CHAT_MODEL}",
+        "gemini": f"Gemini key set — using {config.GEMINI_CHAT_MODEL}",
+        "none": "no LLM key — think/enrich degraded. Set ANTHROPIC_API_KEY or GEMINI_API_KEY",
+    }[provider]
+    chk("llm_key", llm_ok, detail)
 
     # 3. API connectivity + memory count
     try:
