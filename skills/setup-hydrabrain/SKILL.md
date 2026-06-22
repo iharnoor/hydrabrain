@@ -27,8 +27,8 @@ if a step needs attention.
 curl -fsSL https://raw.githubusercontent.com/iharnoor/hydrabrain/master/scripts/install.sh | bash
 ```
 
-From inside a clone: `bash scripts/install.sh`. To include YouTube ingestion:
-`HYDRABRAIN_WITH_YOUTUBE=1 bash scripts/install.sh`.
+From inside a clone: `bash scripts/install.sh`. Article, tweet, and YouTube ingestion
+all work out of the box (the transcript dep is bundled).
 
 ## What it does (and how to do each step by hand)
 
@@ -72,4 +72,5 @@ python3 -m hydrabrain.cli sync ~/notes     # bulk, incremental file ingest
   If health is 200 but data routes 500, it's a backend/datastore outage, not your key —
   rotating the key won't help.
 - **"isn't set up yet"** → run `python3 -m hydrabrain.cli init` (or `web`).
-- **YouTube `read` fails** → `pip install youtube-transcript-api`.
+- **YouTube `read` fails** → the transcript dep ships by default, so this is a runtime issue:
+  the video has no transcript/captions, or YouTube is rate-limiting the IP. Try another video.

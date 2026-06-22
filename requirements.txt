@@ -4,6 +4,7 @@ python-dotenv>=1.0
 google-genai>=1.0
 rank-bm25>=0.2.2
 mcp>=1.0
+youtube-transcript-api>=1.0   # YouTube ingestion works out of the box
 
 # bench extras (mirrors pyproject.toml [bench])
 numpy>=1.26

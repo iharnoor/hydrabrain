@@ -7,7 +7,7 @@ clean text, and hands it to `add_memory(infer=True)` so HydraDB wires the graph.
 Dependency-light by design, all free / no-auth:
   • Article / web pages — `requests` + a stdlib HTML→text extractor (no extra deps).
   • Tweets — the free Twitter oEmbed endpoint (no API key, no auth).
-  • YouTube transcripts — optional `youtube_transcript_api`; if absent, a clear message.
+  • YouTube transcripts — `youtube_transcript_api` (a bundled dependency; works OOTB).
   • LinkedIn — best-effort via the article reader; login-walled posts get a "paste it" hint.
 
 Add a connector by writing one `fetch_*(url) -> Source` function and routing it in
@@ -145,13 +145,18 @@ def fetch_youtube(url: str) -> Source:
     if not vid:
         raise ValueError(f"not a recognizable YouTube URL: {url}")
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi  # optional dep
+        from youtube_transcript_api import YouTubeTranscriptApi
     except Exception as e:  # pragma: no cover
         raise RuntimeError(
             "YouTube ingestion needs `youtube-transcript-api`: pip install youtube-transcript-api"
         ) from e
-    segments = YouTubeTranscriptApi.get_transcript(vid)
-    text = " ".join(s.get("text", "") for s in segments).strip()
+    # The API moved from a static get_transcript() (<1.0) to an instance .fetch() (>=1.0).
+    if hasattr(YouTubeTranscriptApi, "get_transcript"):
+        segments = YouTubeTranscriptApi.get_transcript(vid)
+        text = " ".join(s.get("text", "") for s in segments).strip()
+    else:
+        fetched = YouTubeTranscriptApi().fetch(vid)
+        text = " ".join(getattr(s, "text", "") for s in fetched).strip()
     if not text:
         raise ValueError(f"no transcript available for {url}")
     return Source(title=f"YouTube {vid}", text=text, url=url, kind="youtube")

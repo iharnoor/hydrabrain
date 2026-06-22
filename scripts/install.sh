@@ -46,11 +46,7 @@ PY="$VENV/bin/python"
 # 3) Dependencies (into the venv — no PEP 668 error, no sudo, no system pollution)
 say "Installing dependencies into .venv…"
 "$PY" -m pip install -q --upgrade pip >/dev/null 2>&1 || true
-"$PY" -m pip install -q -r requirements.txt
-if [ "${HYDRABRAIN_WITH_YOUTUBE:-}" = "1" ]; then
-  say "Installing optional YouTube transcript support…"
-  "$PY" -m pip install -q youtube-transcript-api || true
-fi
+"$PY" -m pip install -q -r requirements.txt   # includes YouTube transcript support
 
 # 4) Guided key setup (writes ~/.hydrabrain/.env). Skip if already configured.
 if "$PY" -m hydrabrain.cli status >/dev/null 2>&1; then

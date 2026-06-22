@@ -191,8 +191,8 @@ curl -fsSL https://raw.githubusercontent.com/iharnoor/hydrabrain/master/scripts/
 
 Clones (if needed) → builds a `.venv` (works on Homebrew/managed Python — no PEP 668 error) →
 installs deps → guided key setup (**Free mode = just a HydraDB key**) → verifies → registers the
-MCP server with Claude if present. Add YouTube ingestion with `HYDRABRAIN_WITH_YOUTUBE=1`.
-Agents: invoke the **`setup-hydrabrain`** skill.
+MCP server with Claude if present. Article, tweet, and **YouTube** ingestion all work out of
+the box. Agents: invoke the **`setup-hydrabrain`** skill.
 
 **Other ways to install:**
 
