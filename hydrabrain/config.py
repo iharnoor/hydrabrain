@@ -23,9 +23,8 @@ except Exception:  # pragma: no cover
 USER_ENV = Path.home() / ".hydrabrain" / ".env"
 
 _ENV_CANDIDATES = [
-    Path(__file__).resolve().parent.parent / ".env",
-    USER_ENV,
-    Path("/Users/harnoorsingh/Developer/HydraDB/.env"),  # legacy dev machine; harmless elsewhere
+    Path(__file__).resolve().parent.parent / ".env",   # repo-root .env
+    USER_ENV,                                          # user-level ~/.hydrabrain/.env
 ]
 
 

@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hydrabrain"
+version = "0.1.0"
+description = "gbrain reimplemented on HydraDB — graph-native personal knowledge brain"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.32",
+    "python-dotenv>=1.0",
+    "google-genai>=1.0",
+    "rank-bm25>=0.2.2",
+    "mcp>=1.0",
+]
+
+[project.optional-dependencies]
+bench = [
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "tabulate>=0.9",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-requests>=2.32",
+]
+
+[project.scripts]
+hydrabrain = "hydrabrain.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/usecortex/hermes-hydrabrain"
+Issues = "https://github.com/usecortex/hermes-hydrabrain/issues"
+
+[tool.setuptools.packages.find]
+include = ["hydrabrain*", "bench*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["test"]

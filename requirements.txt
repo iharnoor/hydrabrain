@@ -1,5 +1,11 @@
-requests
-python-dotenv
-google-genai
-rank-bm25
-mcp
+# hydrabrain runtime dependencies (mirrors pyproject.toml [project].dependencies)
+requests>=2.32
+python-dotenv>=1.0
+google-genai>=1.0
+rank-bm25>=0.2.2
+mcp>=1.0
+
+# bench extras (mirrors pyproject.toml [bench])
+numpy>=1.26
+scipy>=1.13
+tabulate>=0.9

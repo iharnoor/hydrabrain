@@ -1,0 +1,31 @@
+storage:
+  # Directories whose contents are synced to HydraDB via `hydrabrain ingest`.
+  # Files here are ingested as knowledge memories (infer=True builds the graph).
+  ingest:
+    - people/
+    - companies/
+    - deals/
+    - concepts/
+    - yc/
+    - ideas/
+    - projects/
+
+  # Machine-generated content — ingest but treat as lower-signal ephemera.
+  # Will still be captured to HydraDB; not committed to git by default.
+  ephemeral:
+    - media/x/
+    - media/articles/
+    - meetings/transcripts/
+
+recall:
+  # "thinking" runs deeper graph traversal; "fast" is a lighter pass.
+  mode: thinking
+  # alpha=1.0 uses pure dense-vector recall. Lower values blend BM25.
+  # Set to 0.8–1.0 for most personal brains; lower (0.5) for keyword-heavy corpora.
+  alpha: 1.0
+  max_results: 5
+  graph_context: true
+
+models:
+  chat: gemini-2.5-flash
+  embed: gemini-embedding-001

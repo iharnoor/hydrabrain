@@ -1,11 +1,104 @@
 > **Fork note — context memory = [HydraDB](https://hydradb.com).** This repository is a fork of gbrain. The upstream gbrain source uses pgvector/PGLite as its memory store; for work in **this** fork the context-memory layer is **HydraDB** — see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md) and the Python `hydrabrain/` package. Do not assume pgvector/PGLite for new work here.
 
-# GBrain Installation Guide for AI Agents
+# HydraBrain / GBrain Installation Guide for AI Agents
 
 Read this entire file, then follow the steps. Ask the user for API keys when needed.
+
+> **Two implementations in this repo.** Start with **HydraBrain** (Section A) —
+> it is the simpler, cloud-native path. The original **GBrain TypeScript** install
+> (Section B) is preserved for offline / benchmarking use.
+
+---
+
+## Section A — HydraBrain (Python / HydraDB) — Target: ~5 min
+
+### A0: Prerequisites
+
+- Python 3.11+
+- A HydraDB account — sign up at <https://app.hydradb.com> (free tier available)
+- A Gemini API key — for `hydrabrain think` synthesis (optional; search works without it)
+
+### A1: Install
+
+```bash
+# From repo root (editable install + bench extras):
+pip install -e ".[bench]"
+```
+
+Verify: `hydrabrain --help` should print available commands.
+
+### A2: Set credentials
+
+```bash
+cp .env.hydrabrain.example .env
+# Edit .env — fill in:
+#   HYDRADB_API_KEY   — from https://app.hydradb.com → API keys
+#   HYDRABRAIN_TENANT — your tenant slug (e.g. "personal" or your org name)
+#   GEMINI_API_KEY    — from https://aistudio.google.com (optional but recommended)
+```
+
+Alternatively export directly:
+```bash
+export HYDRADB_API_KEY="hdb-..."
+export HYDRABRAIN_TENANT="personal"
+export GEMINI_API_KEY="AIza..."
+```
+
+### A3: Verify
+
+```bash
+hydrabrain status
+# Expected: {"tenant": "...", "memories": 0}
+```
+
+### A4: Register the MCP server
+
+Add to your agent platform:
+
+```bash
+# Claude Code
+claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
+
+# Hermes
+hermes mcp add hydrabrain --command python3 --args -m hydrabrain.cli serve
+
+# Claude Desktop (add to claude_desktop_config.json)
+# "hydrabrain": {"command": "python3", "args": ["-m", "hydrabrain.cli", "serve"]}
+```
+
+Confirm the 5 tools are listed: `capture`, `search`, `think`, `graph`, `status`.
+
+### A5: First ingestion
+
+```bash
+hydrabrain capture "I am <name>. I work on <topic>."    # seed identity
+hydrabrain ingest ~/notes/*.md                           # import markdown files
+hydrabrain search "what do I work on?"                   # verify end-to-end recall
+```
+
+That's it. The MCP server is live and the brain has context.
+
+### A6: Tune recall (optional)
+
+Defaults (`mode=thinking`, `alpha=1.0`) work well for most personal brains.
+For keyword-heavy corpora lower `alpha` toward 0.5; for conversational corpora
+keep it at 1.0. Override in `.env` or in `hydrabrain.yml`.
+
+### A7: Run benchmarks (optional)
+
+```bash
+python -m bench.run_bench --help
+```
+
+See [`BENCHMARKS.md`](./BENCHMARKS.md) for methodology and results.
+
+---
+
+## Section B — GBrain (TypeScript / Bun)
+
 Target: ~30 minutes to a fully working brain.
 
-## Step 0: If you are not Claude Code
+### B0: If you are not Claude Code
 
 Read `AGENTS.md` at the repo root first. It's the non-Claude-agent operating
 protocol (install, read order, trust boundary, common tasks). Claude Code reads

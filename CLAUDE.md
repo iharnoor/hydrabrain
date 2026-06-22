@@ -2,6 +2,16 @@
 
 # CLAUDE.md
 
+> **Fork notice:** this repo carries TWO implementations.
+> - **`hydrabrain/`** — Python reimplementation backed by [HydraDB](https://hydradb.com).
+>   Zero local infra, pip-installable, 5 MCP tools. **Primary implementation for this fork.**
+>   See `hydrabrain.plugin.json`, `hydrabrain.yml`, `pyproject.toml`.
+> - **`src/` / `skills/`** — upstream gbrain TypeScript source (preserved unchanged).
+>   Description below applies to this TS implementation.
+>
+> **If you are working on the hydrabrain Python package**, you do NOT need Bun, PGLite,
+> or Postgres. Start with `hydrabrain/` and the quickstart in `AGENTS.md`.
+
 GBrain is a personal knowledge brain and GStack mod for agent platforms. Pluggable
 engines: PGLite (embedded Postgres via WASM, zero-config default) or Postgres + pgvector
 + hybrid search in a managed Supabase instance. `gbrain init` defaults to PGLite;

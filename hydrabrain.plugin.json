@@ -1,0 +1,88 @@
+{
+  "name": "hydrabrain",
+  "version": "0.1.0",
+  "description": "Personal knowledge brain backed by HydraDB — graph-native hybrid recall, zero local infra",
+  "family": "bundle-plugin",
+  "configSchema": {
+    "hydradb_api_key": {
+      "type": "string",
+      "required": true,
+      "description": "HydraDB API key — get one at https://app.hydradb.com",
+      "uiHints": {
+        "sensitive": true,
+        "envVar": "HYDRADB_API_KEY"
+      }
+    },
+    "hydrabrain_tenant": {
+      "type": "string",
+      "required": true,
+      "description": "HydraDB tenant ID for this brain (e.g. 'personal' or your org slug)",
+      "uiHints": {
+        "envVar": "HYDRABRAIN_TENANT"
+      }
+    },
+    "gemini_api_key": {
+      "type": "string",
+      "required": false,
+      "description": "Gemini API key for synthesis (think command). Optional — search still works without it.",
+      "uiHints": {
+        "sensitive": true,
+        "envVar": "GEMINI_API_KEY"
+      }
+    }
+  },
+  "mcpServers": {
+    "hydrabrain": {
+      "command": "python3",
+      "args": ["-m", "hydrabrain.cli", "serve"]
+    }
+  },
+  "skills": [
+    "skills/brain-ops",
+    "skills/briefing",
+    "skills/concept-synthesis",
+    "skills/cron-scheduler",
+    "skills/daily-task-manager",
+    "skills/daily-task-prep",
+    "skills/data-research",
+    "skills/enrich",
+    "skills/hydrabrain-advisor",
+    "skills/idea-ingest",
+    "skills/idea-lineage",
+    "skills/ingest",
+    "skills/meeting-ingestion",
+    "skills/perplexity-research",
+    "skills/query",
+    "skills/reports",
+    "skills/signal-detector",
+    "skills/strategic-reading",
+    "skills/voice-note-ingest"
+  ],
+  "shared_deps": [
+    "skills/conventions",
+    "skills/_AGENT_README.md",
+    "skills/_brain-filing-rules.md",
+    "skills/_brain-filing-rules.json",
+    "skills/_output-rules.md"
+  ],
+  "excluded_from_install": [
+    "skills/setup",
+    "skills/migrate",
+    "skills/publish"
+  ],
+  "openclaw": {
+    "compat": {
+      "pluginApi": ">=2026.4.0"
+    }
+  },
+  "hermes": {
+    "compat": {
+      "pluginApi": ">=2026.4.0"
+    }
+  },
+  "contracts": {
+    "contextEngines": [
+      "hydrabrain-context"
+    ]
+  }
+}

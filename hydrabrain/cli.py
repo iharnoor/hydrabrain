@@ -3,6 +3,7 @@
 Commands (mirroring gbrain):
   hydrabrain init                   one-time setup: collect & save your API keys
   hydrabrain status                 show tenant + memory count
+  hydrabrain doctor                 health check: keys, connectivity, memory count
   hydrabrain capture "<text>"       ingest a thought / consumed content
   hydrabrain ingest <file...>       ingest text/markdown files
   hydrabrain sync <dir|glob...>     bulk, incremental ingest (skips unchanged files)
@@ -16,6 +17,12 @@ Commands (mirroring gbrain):
   hydrabrain graph  <source_id>     explore the knowledge graph
   hydrabrain export <dir>           dump the brain (tenant+source) to files
   hydrabrain serve                  run the MCP server (stdio)
+  hydrabrain cron add "<expr>" "<cmd>"  schedule a recurring hydrabrain command
+  hydrabrain cron list              list scheduled cron jobs
+  hydrabrain cron remove <id>       remove a scheduled job
+  hydrabrain jobs submit "<cmd>"    run a shell command in the background
+  hydrabrain jobs list              list recent background jobs
+  hydrabrain jobs watch <id>        stream output of a running job
   hydrabrain bench [...]            run the HydraDB-vs-gbrain-stack benchmark
 
 Global: --tenant <id> (the brain), --source <id> (a namespace inside it).
@@ -164,6 +171,67 @@ def cmd_serve(args):
     serve_main(tenant_id=args.tenant, source_id=getattr(args, "source", None))
 
 
+def cmd_doctor(args):
+    from . import doctor
+    eng = _engine(args)
+    print("\n  hydrabrain doctor\n")
+    checks = doctor.run(eng)
+    failures = doctor.print_report(checks)
+    print()
+    if failures:
+        print(f"  {failures} check(s) failed — see details above.")
+        sys.exit(1)
+    else:
+        print("  All checks passed.")
+
+
+def cmd_cron_add(args):
+    from . import cron
+    job_id = cron.add_job(args.expr, args.command)
+    print(f"scheduled (id={job_id}): {args.expr}  {args.command}")
+
+
+def cmd_cron_list(args):
+    from . import cron
+    jobs = cron.list_jobs()
+    if not jobs:
+        print("no hydrabrain cron jobs scheduled. Use `hydrabrain cron add` to create one.")
+        return
+    for j in jobs:
+        print(f"  id={j['id']}  {j['expr']}  {j['command']}")
+
+
+def cmd_cron_remove(args):
+    from . import cron
+    removed = cron.remove_job(args.id)
+    print("removed." if removed else f"job id={args.id} not found.")
+
+
+def cmd_jobs_submit(args):
+    from . import jobs
+    job_id = jobs.submit(args.command)
+    print(f"submitted job {job_id} — `hydrabrain jobs watch {job_id}` to follow output")
+
+
+def cmd_jobs_list(args):
+    from . import jobs
+    all_jobs = jobs.list_jobs()
+    if not all_jobs:
+        print("no jobs yet.")
+        return
+    for j in all_jobs:
+        submitted = j.get("submitted_at", 0)
+        import time
+        age = int(time.time() - submitted)
+        print(f"  {j['id']}  {j.get('status','?'):8}  pid={j.get('pid','?')}  "
+              f"age={age}s  {j.get('command','')[:60]}")
+
+
+def cmd_jobs_watch(args):
+    from . import jobs
+    jobs.watch(args.id)
+
+
 def cmd_bench(args):
     # Delegate to the benchmark package.
     from bench.run_bench import main as bench_main
@@ -184,6 +252,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_init)
 
     sp = sub.add_parser("status"); sp.set_defaults(func=cmd_status)
+
+    sp = sub.add_parser("doctor", help="health check: keys, connectivity, memory count")
+    sp.set_defaults(func=cmd_doctor)
 
     sp = sub.add_parser("capture")
     sp.add_argument("text"); sp.add_argument("--title", default="")
@@ -238,6 +309,40 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("serve"); sp.set_defaults(func=cmd_serve)
 
+    # cron subcommands
+    cron_p = sub.add_parser("cron", help="manage scheduled cron jobs")
+    cron_sub = cron_p.add_subparsers(dest="cron_cmd", required=True)
+
+    sp = cron_sub.add_parser("add", help='schedule a command, e.g. cron add "0 9 * * *" "hydrabrain sync ~/notes"')
+    sp.add_argument("expr", help="cron expression, e.g. '0 9 * * *'")
+    sp.add_argument("command", help="shell command to run")
+    sp.set_defaults(func=cmd_cron_add)
+
+    sp = cron_sub.add_parser("list", help="list scheduled hydrabrain cron jobs")
+    sp.set_defaults(func=cmd_cron_list)
+
+    sp = cron_sub.add_parser("remove", help="remove a scheduled job by id")
+    sp.add_argument("id"); sp.set_defaults(func=cmd_cron_remove)
+
+    cron_p.set_defaults(func=lambda a: cron_p.print_help())
+
+    # jobs subcommands
+    jobs_p = sub.add_parser("jobs", help="manage background shell jobs")
+    jobs_sub = jobs_p.add_subparsers(dest="jobs_cmd", required=True)
+
+    sp = jobs_sub.add_parser("submit", help="run a command in the background")
+    sp.add_argument("command", help="shell command to run")
+    sp.set_defaults(func=cmd_jobs_submit)
+
+    sp = jobs_sub.add_parser("list", help="list recent background jobs")
+    sp.set_defaults(func=cmd_jobs_list)
+
+    sp = jobs_sub.add_parser("watch", help="stream output of a running job")
+    sp.add_argument("id", help="job id from `hydrabrain jobs list`")
+    sp.set_defaults(func=cmd_jobs_watch)
+
+    jobs_p.set_defaults(func=lambda a: jobs_p.print_help())
+
     sp = sub.add_parser("bench")
     sp.add_argument("bench_args", nargs=argparse.REMAINDER)
     sp.set_defaults(func=cmd_bench)
@@ -246,7 +351,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 # Commands that work (or guide the user) without keys already configured.
-_NO_KEY_OK = {"init", "web"}
+_NO_KEY_OK = {"init", "web", "cron", "jobs"}
 
 
 def main(argv=None):
@@ -261,6 +366,10 @@ def main(argv=None):
         args.func(args)
     except KeyboardInterrupt:
         sys.exit(130)
+    except RuntimeError as e:
+        # expected, actionable failures (missing key, crontab unavailable, …) — no traceback
+        print(f"error: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

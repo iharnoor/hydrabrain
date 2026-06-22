@@ -1,12 +1,59 @@
 > **Fork note — context memory = [HydraDB](https://hydradb.com).** This repository is a fork of gbrain. The upstream gbrain source uses pgvector/PGLite as its memory store; for work in **this** fork the context-memory layer is **HydraDB** — see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md) and the Python `hydrabrain/` package. Do not assume pgvector/PGLite for new work here.
 
-# Agents working on GBrain
+# Agents working on HydraBrain / GBrain
 
-This is your install + operating protocol. Claude Code reads `./CLAUDE.md` automatically.
-Everyone else (Codex, Cursor, OpenClaw, Aider, Continue, or an LLM fetching via URL):
-start here.
+> **Two implementations live in this repo:**
+> - **`hydrabrain/`** — Python reimplementation backed by [HydraDB](https://hydradb.com).
+>   Zero local infra; one `pip install`, one API key. **This is the primary implementation.**
+> - **`src/` / `skills/`** — Original upstream gbrain TypeScript source (Bun + PGLite/Postgres).
+>   Preserved for benchmarking and lineage. See [`README.upstream.md`](./README.upstream.md).
+>
+> Claude Code reads `./CLAUDE.md` automatically. Everyone else starts here.
 
-## Install (5 min)
+## Quick-install: HydraBrain (recommended)
+
+```bash
+pip install -e ".[bench]"          # install hydrabrain + bench extras
+cp .env.hydrabrain.example .env    # fill in HYDRADB_API_KEY, HYDRABRAIN_TENANT, GEMINI_API_KEY
+hydrabrain status                  # verify — should print tenant + memory count
+```
+
+**Get credentials at <https://app.hydradb.com>.**  
+No local Postgres, no WASM, no Bun required. Works on any Python 3.11+ machine.
+
+### Wire the MCP server
+
+Add to Claude Code / Hermes / any MCP host:
+```bash
+# Claude Code
+claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
+
+# Hermes
+hermes mcp add hydrabrain --command python3 --args -m hydrabrain.cli serve
+```
+
+Confirm the tools are available: `capture`, `search`, `think`, `graph`, `status`.
+
+### First brain ingestion
+
+```bash
+hydrabrain capture "My name is <name>. I work on <topic>."    # seed identity
+hydrabrain ingest ~/brain/*.md                                 # import markdown files
+hydrabrain search "what do I work on?"                         # verify recall
+```
+
+See [`INSTALL_FOR_AGENTS.md`](./INSTALL_FOR_AGENTS.md) for the full HydraBrain setup flow
+(API keys, tenant config, cron, verification, MCP registration).
+
+---
+
+## Upstream GBrain (TypeScript / Bun)
+
+The sections below describe the upstream gbrain TS implementation.
+Use this if you need PGLite embedded Postgres, offline operation, or
+want to reproduce the benchmarks against gbrain's native stack.
+
+### Install (5 min)
 
 1. Install gbrain via Bun (the canonical path):
    ```bash
@@ -33,6 +80,13 @@ start here.
 
 ## Read this order
 
+### HydraBrain (Python / HydraDB)
+1. `./AGENTS.md` (this file) — install + operating protocol.
+2. [`./hydrabrain/`](./hydrabrain/) — the implementation: `engine.py`, `client.py`, `cli.py`, `mcp_server.py`.
+3. [`./INSTALL_FOR_AGENTS.md`](./INSTALL_FOR_AGENTS.md) — full setup (HydraBrain section first).
+4. [`./BENCHMARKS.md`](./BENCHMARKS.md) — benchmark methodology and results.
+
+### GBrain upstream (TypeScript / Bun)
 1. `./AGENTS.md` (this file) — install + operating protocol.
 2. [`./CLAUDE.md`](./CLAUDE.md) — orientation + resolver: architecture, cross-cutting
    invariants, the reference map, inline ship rules. It routes to on-demand detail docs:
