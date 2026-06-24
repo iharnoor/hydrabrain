@@ -92,89 +92,87 @@
 
 <main>
   <div class="wrap">
-    <p class="lede">Search bars are good at one thing: finding the note that contains the words you typed. The questions that would actually make a pile of saved content valuable are almost never about words. They are about how things connect.</p>
+    <p class="lede">Search bars find the note with the words you typed. The questions that make a pile of saved content useful are almost never about words. They are about how things connect, and that is a different problem most memory systems quietly fail.</p>
 
-    <p>Here is the question I kept wanting to ask my own saved stuff, and could not:</p>
+    <p>The question I kept wanting to ask my own saves, and could not:</p>
 
     <div class="ask">
       <p class="q">"Which of the people whose posts I saved this month also got mentioned in that thread about the new fund?"</p>
-      <p class="r"><span class="x">search:</span> <span>returns the thread, and every note with the word "fund." None of them is the answer. The answer is a person, and that person's name is not in your query at all.</span></p>
-      <p class="r" style="margin-top:10px"><span class="ok">graph:</span> <span>start at the thread, follow "mentions" to the people, intersect with the people you saved. The answer falls out of the connections, not the keywords.</span></p>
+      <p class="r"><span class="x">search:</span> <span>returns the thread and every note with the word "fund." The answer is a person whose name is not in your query at all.</span></p>
+      <p class="r" style="margin-top:10px"><span class="ok">graph:</span> <span>start at the thread, follow "mentions" to the people, intersect with the people you saved. The answer falls out of the connections.</span></p>
     </div>
 
-    <p>That is a <strong>multi-hop</strong> question. The answer is not in any single note. It lives in the path between notes, and you have to take more than one step to reach it.</p>
+    <p>That is a <strong>multi-hop</strong> question. The answer is not in any one note. It is in the path between them, and you have to take more than one step to reach it.</p>
 
-    <h2><span class="num">01</span>Why the search bar goes quiet</h2>
+    <h2><span class="num">01</span>Why search goes quiet</h2>
 
-    <p>Both kinds of search you have used fail this question for the same underlying reason. <strong>Keyword search</strong> matches the literal words, so it can only find notes that already contain your query. <strong>Vector search</strong> (the thing powering most "chat with your notes" features) matches <em>meaning</em>, so it finds notes that are <em>about the same topic</em> as your query. Both are similarity. Neither is connection.</p>
+    <p>Keyword search matches words. Vector search, the engine behind most "chat with your notes" features, matches meaning. Both are similarity. The answer to a multi-hop question is not similar to the question: the person you want is not "about" funds, they are linked to one through someone else's sentence. Similarity walks right past them.</p>
 
-    <p>The answer to a multi-hop question is, by definition, not similar to the question. The person you are looking for is not "about" funds. They are linked to the fund through someone else's sentence. Similarity search walks right past them, because nothing about them looks like what you asked.</p>
-
-    <p>People assume a reranker fixes this. It does not. A reranker reorders the candidates retrieval already pulled. If the right note was never pulled into the candidate set, no amount of reordering invents it. The missing answer was never on the table.</p>
+    <p>And a reranker does not save you. It reorders what retrieval already pulled. If the answer was never pulled in, reordering cannot invent it.</p>
 
     <div class="pull">
       <blockquote>Similarity finds the note that looks like your question. Connection finds the note that answers it. Those are different notes.</blockquote>
     </div>
 
-    <h2><span class="num">02</span>What "hops" actually means</h2>
+    <h2><span class="num">02</span>Hops</h2>
 
-    <p>A hop is one step along a relationship. Most retrieval is implicitly one hop, and one hop is easy:</p>
+    <p>A hop is one step along a relationship. One hop is easy, because the answer note usually contains the words:</p>
 
     <div class="hops">
-      <div class="hoprow"><span class="node q">"who works at company-00"</span><span class="arr">&rarr;</span><span class="edge">works_at</span><span class="arr">&rarr;</span><span class="node">person-00</span></div>
+      <div class="hoprow"><span class="node q">"who works at company-00"</span><span class="arr">-&gt;</span><span class="edge">works_at</span><span class="arr">-&gt;</span><span class="node">person-00</span></div>
     </div>
 
-    <p>That is a single edge. Even plain search often stumbles into the answer, because the note about person-00 probably says "company-00" right in it. The trouble starts when the answer is two hops away and nothing in the question names the destination:</p>
+    <p>Two hops is where it breaks, because nothing in the question names the destination:</p>
 
     <div class="hops">
       <div class="hoprow"><span class="node q">"which fund backed the company person-00 works at"</span></div>
-      <div class="hoprow"><span class="node">person-00</span><span class="arr">&rarr;</span><span class="edge">works_at</span><span class="arr">&rarr;</span><span class="node">company-00</span><span class="arr">&rarr;</span><span class="edge">backed_by</span><span class="arr">&rarr;</span><span class="node">fund-a</span></div>
+      <div class="hoprow"><span class="node">person-00</span><span class="arr">-&gt;</span><span class="edge">works_at</span><span class="arr">-&gt;</span><span class="node">company-00</span><span class="arr">-&gt;</span><span class="edge">backed_by</span><span class="arr">-&gt;</span><span class="node">fund-a</span></div>
     </div>
 
-    <p>To answer that, a system has to resolve person-00, walk to their company, then walk again to that company's investor. The note holding the answer (fund-a) may never mention person-00 at all. There is nothing for similarity to grab. You need a system that stored the relationships as relationships, and can follow them.</p>
+    <p>The note holding the answer may never mention person-00. There is nothing for similarity to grab. You need a system that stored the relationships as relationships and can walk them.</p>
 
-    <h2><span class="num">02</span>The graph is the thing that can follow a link</h2>
+    <h2><span class="num">03</span>A graph walks the link</h2>
 
-    <p>A graph-native memory does not just store your notes as a pile of text. As it ingests, it pulls the relationships out of the prose and stores them as typed edges: <code>works_at</code>, <code>backed_by</code>, <code>mentions</code>, <code>founded</code>. Now a multi-hop question becomes a short walk: resolve the starting entity, follow the edges, return what you land on. The answer comes from the structure, so it does not matter that the destination note shares no words with your question.</p>
+    <p>A graph-native store pulls relationships out of your prose as it ingests and keeps them as typed edges: <code>works_at</code>, <code>backed_by</code>, <code>mentions</code>. A multi-hop question becomes a short walk: resolve the start, follow the edges, return what you land on. It stops mattering that the destination shares no words with your query.</p>
 
-    <p>This is the part I wanted to measure, because it is the part that decides whether a second brain can actually answer the interesting questions. So I benchmarked it: a graph-native store (<a href="https://hydradb.com">HydraDB</a>) against a strong open-source memory engine, on a set of one-hop and two-hop relational questions over the same corpus.</p>
+    <p>So I measured it: a graph-native store (<a href="https://hydradb.com">HydraDB</a>) against a strong open-source memory engine, on one- and two-hop questions over the same corpus.</p>
 
-    <h2><span class="num">03</span>What the multi-hop numbers say</h2>
+    <h2><span class="num">04</span>The numbers</h2>
 
     <div class="scroller">
       <table>
-        <caption>Relational recall@5 · opponent handed a perfect, hand-built graph</caption>
-        <thead><tr><th>Question type</th><th>HydraDB</th><th>opponent</th></tr></thead>
+        <caption>Relational recall@5 - opponent handed a perfect, hand-built graph</caption>
+        <thead><tr><th>Question</th><th>HydraDB</th><th>opponent</th></tr></thead>
         <tbody>
-          <tr><td>1-hop ("who works at X")</td><td>92.3%</td><td class="win-g">100.0%</td></tr>
-          <tr><td>2-hop ("which fund backed the company X works at")</td><td class="win-h">86.0%</td><td>63.8%</td></tr>
+          <tr><td>1-hop</td><td>92.3%</td><td class="win-g">100.0%</td></tr>
+          <tr><td>2-hop</td><td class="win-h">86.0%</td><td>63.8%</td></tr>
         </tbody>
       </table>
     </div>
 
-    <p>The shape here is the real lesson, and it is honest in both directions. On <strong>one hop, the opponent wins</strong>: when the answer is a single edge away and the graph is hand-built to perfection, deterministic traversal is flawless and hard to beat. But on <strong>two hops, the gap opens wide</strong>, 86.0% to 63.8%, because chaining relationships is where retrieval systems quietly fall apart, and it is exactly the regime the interesting questions live in.</p>
+    <p>On one hop the opponent wins, 100 to 92: with a perfect hand-built graph, deterministic traversal is hard to beat. On two hops the gap blows open, 86.0 to 63.8. Chaining relationships is where retrieval falls apart, and it is exactly where the interesting questions live.</p>
 
     <div class="note">
-      <span class="tag">The honesty tax</span>
-      <p>This is a small synthetic corpus (50 entities, 149 queries), the opponent was handed a perfect graph to remove any excuse, and the hosted side is non-deterministic so the numbers drift a few points per run. Read them as a signal about multi-hop, not a final scoreboard. The full story, including where I almost fooled myself, is in <a href="/blog">the companion post</a>.</p>
+      <span class="tag">Honest, fast</span>
+      <p>Small synthetic corpus (50 entities, 149 queries), opponent handed a perfect graph, hosted service so numbers drift a few points per run. A signal about multi-hop, not a final scoreboard. The fuller story, including where I nearly fooled myself, is in <a href="/blog">the companion post</a>.</p>
     </div>
 
-    <h2><span class="num">04</span>Why this is the whole point of a second brain</h2>
+    <h2><span class="num">05</span>Why this is the whole game</h2>
 
-    <p>The dream I am chasing is simple to say: dump in everything I consume, the saves and the videos and the articles and the half-thoughts, then ask it real questions and get real answers. The reason that dream keeps disappointing people is not ingestion. It is retrieval. A second brain that can only find notes that look like your query is just a search box with extra steps. The questions that would make it feel like a brain ("what connects these two things I saved months apart") are all multi-hop, and multi-hop is exactly what the search box cannot do.</p>
+    <p>The dream is simple: dump in everything you consume, then ask it real questions and get real answers. What kills that dream is not ingestion, it is retrieval. A second brain that only finds notes that look like your query is a search box with extra steps. The questions that make it feel like a brain, like "what connects these two things I saved months apart," are all multi-hop, and multi-hop is exactly what the search box cannot do.</p>
 
-    <p>So the unglamorous infrastructure question, can your memory follow a link, turns out to be the whole product. Get it right and the saved pile becomes answerable. Get it wrong and you have a very smart way to retrieve the note you already remembered saving.</p>
+    <p>So the boring question, can your memory follow a link, is the whole product. Get it right and the pile becomes answerable. Get it wrong and you have built a very smart way to find the note you already remembered.</p>
 
     <hr>
 
-    <h2 style="margin-top:0"><span class="num">&rarr;</span>See it for yourself</h2>
-    <p>The benchmark is open and runs in one command. It builds the graph, engages the relational traversal, and will refuse to print a number if the opponent's graph was not built correctly:</p>
-<pre><code><span class="cmt"># one- and two-hop relational retrieval, opponent handed a perfect graph</span>
+    <h2 style="margin-top:0"><span class="num">&rarr;</span>Run it</h2>
+    <p>One command. Builds the graph, turns on traversal, refuses to score if the graph was not built right:</p>
+<pre><code><span class="cmt"># one- and two-hop relational retrieval</span>
 python3 -m bench.relational_v2 <span class="acc">--seed-edges --report</span></code></pre>
     <div class="links">
-      <a href="/">↗ the scorecard</a>
-      <a href="/blog">↗ how I caught my own benchmark lying</a>
-      <a href="https://github.com/iharnoor/hydrabrain/tree/bench/fair-relational-harness/bench">↗ the harness</a>
+      <a href="/">&#8599; the scorecard</a>
+      <a href="/blog">&#8599; how I caught my own benchmark lying</a>
+      <a href="https://github.com/iharnoor/hydrabrain/tree/bench/fair-relational-harness/bench">&#8599; the harness</a>
     </div>
   </div>
 </main>
