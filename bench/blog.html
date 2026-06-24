@@ -274,7 +274,7 @@
   <div class="wrap">
     <p class="kicker">Lab notebook · agent memory</p>
     <h1>I caught my own benchmark lying about HydraDB</h1>
-    <p class="dek">I forked an open-source agent-memory engine, rebuilt its retrieval layer on HydraDB, and ran a head-to-head. The first numbers were a blowout. They were also a lie — and the lie was mine.</p>
+    <p class="dek">I forked an open-source agent-memory engine, rebuilt its retrieval layer on HydraDB, and ran a head-to-head. The first numbers were a blowout. They were also a lie - and the lie was mine.</p>
     <div class="dateline">
       <span>By <b>Harnoor</b></span>
       <span>2026-06-23</span>
@@ -286,9 +286,9 @@
 <main>
   <div class="wrap">
 
-    <p>I set out to prove that <a href="https://hydradb.com">HydraDB</a> — a hosted, graph-native store for agent memory — beats the local-first alternatives. The obvious opponent was <a href="https://github.com/garrytan/gbrain">gbrain</a>, garrytan's open-source agent-memory engine. It's well-built, widely used, and explicitly aims to be "the next Postgres for memory." A fair fight against a serious system.</p>
+    <p>I set out to prove that <a href="https://hydradb.com">HydraDB</a> - a hosted, graph-native store for agent memory - beats the local-first alternatives. The obvious opponent was <a href="https://github.com/garrytan/gbrain">gbrain</a>, garrytan's open-source agent-memory engine. It's well-built, widely used, and explicitly aims to be "the next Postgres for memory." A fair fight against a serious system.</p>
 
-    <p>So I forked it. I kept gbrain's skills, its operations contract, its ingestion pipeline — and swapped its retrieval layer for HydraDB. Same prose in, two memory engines out the back. Then I wrote a harness, hit run, and watched HydraDB win everything.</p>
+    <p>So I forked it. I kept gbrain's skills, its operations contract, its ingestion pipeline - and swapped its retrieval layer for HydraDB. Same prose in, two memory engines out the back. Then I wrote a harness, hit run, and watched HydraDB win everything.</p>
 
     <p>That should have felt good. It felt wrong. When your own benchmark hands you a clean sweep against a system you respect, the most likely explanation isn't that you're a genius. It's that you cheated without noticing.</p>
 
@@ -297,12 +297,12 @@
     <p>I went back through my own harness looking for the seams. I found three. Every one of them quietly disadvantaged gbrain, and together they meant I had been benchmarking gbrain <em>with its headline feature switched off.</em></p>
 
     <ul class="bugs">
-      <li><b>BUG 1 — gbrain's graph was never built.</b> gbrain's typed-edge graph is one of its best ideas: it infers relationships from prose and lets you traverse them. But the default schema pack I was using shipped <em>no</em> edge-inference regexes. Result: zero edges. I was scoring a graph engine that had no graph.</li>
-      <li><b>BUG 2 — when edges did build, they were mis-typed.</b> Once I wired in extraction, "person-00 works at company-00" came back labeled <code>founded</code> instead of <code>works_at</code>. Wrong relationship type means the traversal answers the wrong question. Garbage edges are worse than no edges.</li>
-      <li><b>BUG 3 — gbrain's relational arm was dormant by default.</b> Even with a correct graph, gbrain's query path was vector-only unless you explicitly pass <code>relational:true</code>. I hadn't. So the graph I'd fought to build was sitting there unused at query time.</li>
+      <li><b>BUG 1 - gbrain's graph was never built.</b> gbrain's typed-edge graph is one of its best ideas: it infers relationships from prose and lets you traverse them. But the default schema pack I was using shipped <em>no</em> edge-inference regexes. Result: zero edges. I was scoring a graph engine that had no graph.</li>
+      <li><b>BUG 2 - when edges did build, they were mis-typed.</b> Once I wired in extraction, "person-00 works at company-00" came back labeled <code>founded</code> instead of <code>works_at</code>. Wrong relationship type means the traversal answers the wrong question. Garbage edges are worse than no edges.</li>
+      <li><b>BUG 3 - gbrain's relational arm was dormant by default.</b> Even with a correct graph, gbrain's query path was vector-only unless you explicitly pass <code>relational:true</code>. I hadn't. So the graph I'd fought to build was sitting there unused at query time.</li>
     </ul>
 
-    <p>None of these are gbrain's fault. They're defaults — reasonable ones — and they were <em>my</em> responsibility to configure correctly before claiming anything. A benchmark that measures a competitor with their main feature dark isn't a benchmark. It's a press release with a chart.</p>
+    <p>None of these are gbrain's fault. They're defaults - reasonable ones - and they were <em>my</em> responsibility to configure correctly before claiming anything. A benchmark that measures a competitor with their main feature dark isn't a benchmark. It's a press release with a chart.</p>
 
     <h2><span class="num">02</span>Rebuilding it fair</h2>
 
@@ -312,12 +312,12 @@
       <li><strong>Identical input.</strong> The same synthetic prose goes into both engines. No engine gets a cleaner copy of the corpus.</li>
       <li><strong>An integrity gate.</strong> The harness now <em>aborts</em> if gbrain's edges are missing or mis-typed. If the graph isn't real, no scores print. You can't accidentally re-run the original lie.</li>
       <li><strong>gbrain's relational arm engaged.</strong> Queries run with <code>relational:true</code> so gbrain's traversal actually fires.</li>
-      <li><strong>And then I went further.</strong> To kill the obvious rebuttal — "you broke gbrain's extraction, of course it lost" — I <strong>handed gbrain a 100%-correct graph</strong> using its own published seeding method. Perfect edges, perfect types, no extraction error to blame. Best-case gbrain versus HydraDB.</li>
+      <li><strong>And then I went further.</strong> To kill the obvious rebuttal - "you broke gbrain's extraction, of course it lost" - I <strong>handed gbrain a 100%-correct graph</strong> using its own published seeding method. Perfect edges, perfect types, no extraction error to blame. Best-case gbrain versus HydraDB.</li>
     </ul>
 
     <div class="note">
       <span class="tag">On the corpus</span>
-      <p>Everything here runs on a small, synthetic corpus: <strong>50 entities, 149 queries</strong>. Generic placeholders only — <code>person-00</code>, <code>company-00</code>, <code>fund-a</code>. This is <em>not</em> gbrain's published 240-document scale, and I won't pretend it is. It's big enough to expose retrieval behavior on multi-hop relational questions; it's small enough that you should read every number below as a signal, not a verdict.</p>
+      <p>Everything here runs on a small, synthetic corpus: <strong>50 entities, 149 queries</strong>. Generic placeholders only - <code>person-00</code>, <code>company-00</code>, <code>fund-a</code>. This is <em>not</em> gbrain's published 240-document scale, and I won't pretend it is. It's big enough to expose retrieval behavior on multi-hop relational questions; it's small enough that you should read every number below as a signal, not a verdict.</p>
     </div>
 
     <h2><span class="num">03</span>The honest result</h2>
@@ -337,7 +337,7 @@
         </thead>
         <tbody>
           <tr><td class="metric">Recall@5</td><td class="win-h">~88%</td><td class="g">~50%</td></tr>
-          <tr><td class="metric">Relationships recovered by extractor</td><td class="h">—</td><td class="g">~44%</td></tr>
+          <tr><td class="metric">Relationships recovered by extractor</td><td class="h">-</td><td class="g">~44%</td></tr>
         </tbody>
       </table>
     </div>
@@ -359,18 +359,18 @@
       </table>
     </div>
 
-    <p>Read that table honestly, because the honest reading is the whole point. <strong>gbrain wins the simple 1-hop lookups outright — 100.0% to HydraDB's 92.3%.</strong> When the answer is one edge away and the graph is perfect, gbrain's deterministic traversal is flawless and HydraDB occasionally misses. I'm stating that plainly first, because everything else I'm about to claim is only believable if I'm willing to say where I lose.</p>
+    <p>Read that table honestly, because the honest reading is the whole point. <strong>gbrain wins the simple 1-hop lookups outright - 100.0% to HydraDB's 92.3%.</strong> When the answer is one edge away and the graph is perfect, gbrain's deterministic traversal is flawless and HydraDB occasionally misses. I'm stating that plainly first, because everything else I'm about to claim is only believable if I'm willing to say where I lose.</p>
 
-    <p>What HydraDB does win is the part that actually gets hard: <strong>multi-hop traversal.</strong> On 2-hop questions — "which fund backed the company that person-00 works at" — HydraDB holds 86.0% recall against gbrain's 63.8%, even with gbrain's graph hand-built to perfection. Chaining relationships is where retrieval systems break, and it's where the gap opens.</p>
+    <p>What HydraDB does win is the part that actually gets hard: <strong>multi-hop traversal.</strong> On 2-hop questions - "which fund backed the company that person-00 works at" - HydraDB holds 86.0% recall against gbrain's 63.8%, even with gbrain's graph hand-built to perfection. Chaining relationships is where retrieval systems break, and it's where the gap opens.</p>
 
     <div class="pull">
       <blockquote>A benchmark you can't rerun is marketing.</blockquote>
-      <span class="src">— the rule I should have followed before I hit run the first time</span>
+      <span class="src">- the rule I should have followed before I hit run the first time</span>
     </div>
 
     <h2><span class="num">04</span>The architecture argument</h2>
 
-    <p>The retrieval-quality numbers are close enough to argue about. The architecture isn't. This is where HydraDB's case is clearest, and it's not about a metric — it's about how much machinery you have to operate to get there.</p>
+    <p>The retrieval-quality numbers are close enough to argue about. The architecture isn't. This is where HydraDB's case is clearest, and it's not about a metric - it's about how much machinery you have to operate to get there.</p>
 
     <div class="scroller">
       <table>
@@ -387,9 +387,9 @@
       </table>
     </div>
 
-    <p>gbrain's six stages — dense vectors, BM25, reciprocal-rank fusion, a reranker, query expansion, and the graph arm — are each individually reasonable engineering. Stacked, they're roughly <strong>29× the retrieval code</strong> across 32 files and four services you have to keep alive. HydraDB folds all of that behind a single <code>recall()</code>. The result is comparable on quality and dramatically smaller to operate, verify, and reason about.</p>
+    <p>gbrain's six stages - dense vectors, BM25, reciprocal-rank fusion, a reranker, query expansion, and the graph arm - are each individually reasonable engineering. Stacked, they're roughly <strong>29× the retrieval code</strong> across 32 files and four services you have to keep alive. HydraDB folds all of that behind a single <code>recall()</code>. The result is comparable on quality and dramatically smaller to operate, verify, and reason about.</p>
 
-    <h2><span class="num">05</span>At scale — and a caveat I won't bury</h2>
+    <h2><span class="num">05</span>At scale - and a caveat I won't bury</h2>
 
     <p>The synthetic corpus is small. To stress retrieval under real distractor pressure I ran <a href="https://arxiv.org/abs/2410.10813">LongMemEval-S</a> (ICLR 2025), which buries each answer under roughly 48 distractor sessions per question.</p>
 
@@ -408,7 +408,7 @@
 
     <div class="note">
       <span class="tag">Read this before you quote the number</span>
-      <p>The <strong>16.7% opponent here is a BM25 lexical baseline, not gbrain.</strong> I have not run gbrain at LongMemEval scale, so this table says nothing about HydraDB-vs-gbrain. It says HydraDB's recall surfaces the right evidence (a <em>tie</em> at 97.6%) and then turns that evidence into correct answers far more often than naive lexical retrieval does. That's a real result — just not the one a careless skim would claim.</p>
+      <p>The <strong>16.7% opponent here is a BM25 lexical baseline, not gbrain.</strong> I have not run gbrain at LongMemEval scale, so this table says nothing about HydraDB-vs-gbrain. It says HydraDB's recall surfaces the right evidence (a <em>tie</em> at 97.6%) and then turns that evidence into correct answers far more often than naive lexical retrieval does. That's a real result - just not the one a careless skim would claim.</p>
     </div>
 
     <h2><span class="num">06</span>What I actually believe now</h2>
@@ -417,34 +417,58 @@
 
     <ul>
       <li><strong>Robust auto-extraction from prose.</strong> When neither system gets a hand-built graph, HydraDB recovers far more of the relationships that are actually in the text.</li>
-      <li><strong>Multi-hop traversal.</strong> The gap widens exactly where it's hard to win — chaining relationships — and it holds even when gbrain is handed a perfect graph.</li>
+      <li><strong>Multi-hop traversal.</strong> The gap widens exactly where it's hard to win - chaining relationships - and it holds even when gbrain is handed a perfect graph.</li>
       <li><strong>Radical simplicity.</strong> One call, one service, ~29× less code, for comparable quality. That's the operational argument, and it's the strongest one.</li>
       <li><strong>And gbrain genuinely wins 1-hop.</strong> If your workload is simple single-edge lookups and you'll maintain a clean graph, gbrain's local-first determinism is excellent.</li>
     </ul>
 
     <h3>The fine print I owe you</h3>
     <ul>
-      <li>HydraDB is a <strong>hosted service</strong>. It's non-deterministic — numbers <em>drift a few points between runs</em> — and it carries uptime and cost risk that gbrain's local-first store simply doesn't. If you need an air-gapped, fully reproducible store on your own disk, that's a real point in gbrain's favor.</li>
+      <li>HydraDB is a <strong>hosted service</strong>. It's non-deterministic - numbers <em>drift a few points between runs</em> - and it carries uptime and cost risk that gbrain's local-first store simply doesn't. If you need an air-gapped, fully reproducible store on your own disk, that's a real point in gbrain's favor.</li>
       <li>The corpus is <strong>small and synthetic</strong> (50 entities, 149 queries), well below gbrain's published 240-doc scale. Treat the relational tables as directional.</li>
       <li>Every "win" above is "win on this corpus, at this scale, on this day." Rerun it and the third decimal will move.</li>
     </ul>
 
+    <h2><span class="num">07</span>Don't trust this benchmark either</h2>
+
+    <p>Here is the part that outlives this one project. If my own benchmark could be quietly rigged in my favor without me noticing, so can anyone's. A benchmark is a claim about the world wearing the costume of a measurement, and the person showing it to you picked the corpus, the opponent, the metric, the config, and the moment to stop checking. Every one of those is a place to hide a win, and the author is the last person able to see it, because it is their own thumb on the scale.</p>
+
+    <div class="pull">
+      <blockquote>The person showing you a benchmark is the one least able to see what is wrong with it. Especially when that person is you.</blockquote>
+      <span class="src">- what step one taught me</span>
+    </div>
+
+    <p>So I stopped trusting benchmarks on sight, including mine. The replacement is not cynicism, it is a routine: reproduce, then try to break it. Here is the checklist I run now. It is just the set of questions that would have caught me.</p>
+
+    <ol>
+      <li><strong>Is the opponent real, or a strawman?</strong> My first run fought a reproduction of gbrain with its best feature deleted. That only proves "feature beats no-feature." Run the actual system.</li>
+      <li><strong>Is the opponent's headline feature actually on?</strong> gbrain's graph was off by default. I was measuring it with one hand tied and calling it a fair fight.</li>
+      <li><strong>Did the inputs land? Count them.</strong> Do not assume ingestion worked. My harness now aborts if the opponent's graph has zero edges or the wrong types, instead of silently scoring an empty system.</li>
+      <li><strong>Did you give the opponent its best config?</strong> I handed gbrain a perfect, hand-verified graph. If you only beat a misconfigured opponent, you did not win.</li>
+      <li><strong>Is the metric the one that matters, and named honestly?</strong> I had mislabeled a hit-rate as a precision metric. Different number, different meaning. Wrong label, lying table.</li>
+      <li><strong>Deterministic? If not, say so.</strong> One side is hosted and drifts a few points per run, so I quote ranges and say "non-deterministic" out loud rather than pretending 88.4 is a law of physics.</li>
+      <li><strong>Can a stranger rerun it in one command?</strong> If not, it is not evidence, it is a screenshot.</li>
+      <li><strong>Does it survive you arguing the other side?</strong> I kept the metric gbrain wins right in the headline. A benchmark that only flatters you is one you have not finished.</li>
+    </ol>
+
+    <p>None of this is exotic. It is the boring discipline of refusing to believe yourself. But it is the line between a number that holds up when the author of the tool you beat reruns it, and a number that detonates in the replies. So here is my ask, and it cuts against my own interest: do not trust my benchmark either. The whole thing is open and reproducible precisely so you do not have to. Run it, try to break it, and if you find a thumb on the scale I missed, that is not an embarrassment, that is the system working.</p>
+
     <hr>
 
     <h3>Reproduce it</h3>
-    <p>The only benchmark worth anything is one you can run yourself. This is the whole thing — fairness gate, relational arm, optional perfect-graph seeding — in one command:</p>
+    <p>The only benchmark worth anything is one you can run yourself. This is the whole thing - fairness gate, relational arm, optional perfect-graph seeding - in one command:</p>
 
 <pre><code><span class="cmt"># fair relational benchmark, with gbrain handed a perfect graph</span>
 python3 -m bench.relational_v2 <span class="acc">--seed-edges</span> <span class="acc">--report</span></code></pre>
 
-    <p>If gbrain's edges aren't built and correctly typed, it aborts before printing a single number. That gate is there because the first version of this post would have been wrong without it — and because I'd rather you catch me than have to catch myself twice.</p>
+    <p>If gbrain's edges aren't built and correctly typed, it aborts before printing a single number. That gate is there because the first version of this post would have been wrong without it - and because I'd rather you catch me than have to catch myself twice.</p>
 
   </div>
 </main>
 
 <footer>
   <div class="wrap">
-    <p>HydraDB is a hosted, graph-native agent-memory store — <a href="https://hydradb.com">hydradb.com</a>. gbrain is open-source agent memory by garrytan — <a href="https://github.com/garrytan/gbrain">github.com/garrytan/gbrain</a>. All entities in the benchmark corpus are synthetic placeholders. This is a fair technical comparison, not a dunk: gbrain is a serious, well-built system, and the integrity of the result depends on being generous to it.</p>
+    <p>HydraDB is a hosted, graph-native agent-memory store - <a href="https://hydradb.com">hydradb.com</a>. gbrain is open-source agent memory by garrytan - <a href="https://github.com/garrytan/gbrain">github.com/garrytan/gbrain</a>. All entities in the benchmark corpus are synthetic placeholders. This is a fair technical comparison, not a dunk: gbrain is a serious, well-built system, and the integrity of the result depends on being generous to it.</p>
     <p style="margin-top:18px;color:var(--dim)">Harnoor · 2026-06-23</p>
   </div>
 </footer>

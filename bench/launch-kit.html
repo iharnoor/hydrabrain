@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="HydraDB benchmark launch kit — blog, tweets, and screenshot strategy in one page.">
+<meta name="description" content="HydraDB benchmark launch kit - blog, tweets, and screenshot strategy in one page.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%9A%80%3C/text%3E%3C/svg%3E">
-<title>HydraDB Benchmark — Launch Kit</title>
+<title>HydraDB Benchmark - Launch Kit</title>
 <style>
   :root{
     --ink:#0a1414;--panel:#0f1d1d;--panel-2:#122525;--line:#1d3433;
@@ -80,39 +80,40 @@
 
   <header>
     <p class="eyebrow">Internal launch kit · not for public link</p>
-    <h1>HydraDB benchmark — launch kit</h1>
+    <h1>HydraDB benchmark - launch kit</h1>
     <p class="lede">Everything to ship the post in one place: the <b>numbers</b>, two <b>copy-ready tweets</b>,
       a <b>screenshot shot-list</b> (what to grab, where, which tweet it attaches to), the <b>posting
-      sequence</b>, and the full <b>blog</b> embedded below. Lead with the real win; keep the 1-hop loss visible — that honesty is the whole strategy.</p>
+      sequence</b>, and the full <b>blog</b> embedded below. Lead with the real win; keep the 1-hop loss visible - that honesty is the whole strategy.</p>
   </header>
 
   <!-- 1. THE NUMBERS -->
   <section>
     <div class="sec-head"><span class="sec-num">01</span><h2>The numbers (your facts sheet)</h2></div>
-    <p class="sub">Quote as ranges — HydraDB is hosted and non-deterministic (±a few points per run).</p>
+    <p class="sub">Quote as ranges - HydraDB is hosted and non-deterministic (±a few points per run).</p>
     <div class="facts">
-      <div class="card"><div class="big">~88% vs ~77%</div><div class="lbl">Relational R@5 — gbrain handed a <b>perfect graph</b></div></div>
+      <div class="card"><div class="big">~88% vs ~77%</div><div class="lbl">Relational R@5 - gbrain handed a <b>perfect graph</b></div></div>
       <div class="card"><div class="big">~86% vs ~64%</div><div class="lbl"><b>Multi-hop</b> (2-hop) R@5</div></div>
       <div class="card"><div class="big">29×</div><div class="lbl">less retrieval code · 1 <code>recall()</code> vs 6 stages</div></div>
-      <div class="card"><div class="big lose">100% vs 92%</div><div class="lbl"><b>gbrain wins 1-hop</b> — the honesty that sells the rest</div></div>
+      <div class="card"><div class="big lose">100% vs 92%</div><div class="lbl"><b>gbrain wins 1-hop</b> - the honesty that sells the rest</div></div>
     </div>
     <div class="links">
       <a href="/" target="_blank">↗ scorecard page</a>
-      <a href="/blog" target="_blank">↗ live blog</a>
+      <a href="/blog" target="_blank">↗ blog 1: "caught my own benchmark lying"</a>
+      <a href="/multihop" target="_blank">↗ blog 2: "the question your notes app can't answer"</a>
       <a href="https://github.com/iharnoor/hydrabrain/tree/bench/fair-relational-harness/bench" target="_blank">↗ harness (GitHub)</a>
     </div>
-    <p class="note"><b>Keep out of the tweets:</b> the LongMemEval "2.3×" — it's vs a BM25 baseline, not gbrain, and muddies a "vs gbrain" post. It lives on the site/blog with the caveat.</p>
+    <p class="note"><b>Keep out of the tweets:</b> the LongMemEval "2.3×" - it's vs a BM25 baseline, not gbrain, and muddies a "vs gbrain" post. It lives on the site/blog with the caveat.</p>
   </section>
 
   <!-- 2. TWEETS -->
   <section>
-    <div class="sec-head"><span class="sec-num">02</span><h2>Tweets — copy-ready</h2></div>
+    <div class="sec-head"><span class="sec-num">02</span><h2>Tweets - copy-ready</h2></div>
     <p class="sub">Two lanes. A = one punchy tweet. B = a 4-tweet thread (the credible version). Image cues show which screenshot to attach.</p>
 
     <div class="tweet">
       <div class="bar"><span class="name">Option A · single tweet</span><button class="copy" data-t="a">copy</button></div>
       <div class="body">
-        <div class="tw" id="a">Agent-memory head-to-head: fed the same docs, HydraDB's auto-built graph beats <b>real gbrain</b> on relational retrieval — R@5 ~88% vs ~77% <i>even when gbrain is handed a 100%-correct graph</i>, and ~86% vs ~64% on multi-hop. One recall() call vs a 6-stage pipeline (29× less code).
+        <div class="tw" id="a">Agent-memory head-to-head: fed the same docs, HydraDB's auto-built graph beats <b>real gbrain</b> on relational retrieval - R@5 ~88% vs ~77% <i>even when gbrain is handed a 100%-correct graph</i>, and ~86% vs ~64% on multi-hop. One recall() call vs a 6-stage pipeline (29× less code).
 
 Honest: gbrain wins simple 1-hop. Rerun it 👇
 https://hydrabrain-benchmarks.vercel.app<span class="img">🖼 attach Shot 1 (scorecard) + Shot 3 (architecture)</span></div>
@@ -123,9 +124,9 @@ https://hydrabrain-benchmarks.vercel.app<span class="img">🖼 attach Shot 1 (sc
       <div class="bar"><span class="name">Option B · thread (recommended)</span><button class="copy" data-t="b">copy all 4</button></div>
       <div class="body">
         <div class="tw" id="b1">1/ I rebuilt gbrain's memory layer on HydraDB and benchmarked them head-to-head. Same 50-entity corpus, 149 queries, real gbrain with its graph ON. Reproducible in one command. The honest scorecard 👇<span class="img">🖼 Shot 4 (terminal run)</span></div>
-        <div class="tw" id="b2">2/ First, the embarrassing part: my initial run was a HydraDB blowout — because my own harness was unfair. gbrain's graph wasn't even building, and its relational arm was dormant by default. Found &amp; fixed 3 fairness bugs before trusting a single number.<span class="img">🖼 Shot 2 (fairness-bugs panel)</span></div>
-        <div class="tw" id="b3">3/ So I handed gbrain a 100%-correct graph — its own published method. It still loses overall (R@5 ~88% vs ~77%) and on multi-hop (~86% vs ~64%). Both auto-extract from prose? ~88% vs ~50% (gbrain's regex NER recovered just 44% of edges). gbrain does win simple 1-hop.<span class="img">🖼 Shot 1 (scorecard table)</span></div>
-        <div class="tw" id="b4">4/ The real story: HydraDB's edge is robust prose→graph extraction + multi-hop, in one recall() call vs a 6-stage pipeline — 29× less code. Small synthetic corpus, hosted service — caveats in the repo.
+        <div class="tw" id="b2">2/ First, the embarrassing part: my initial run was a HydraDB blowout - because my own harness was unfair. gbrain's graph wasn't even building, and its relational arm was dormant by default. Found &amp; fixed 3 fairness bugs before trusting a single number.<span class="img">🖼 Shot 2 (fairness-bugs panel)</span></div>
+        <div class="tw" id="b3">3/ So I handed gbrain a 100%-correct graph - its own published method. It still loses overall (R@5 ~88% vs ~77%) and on multi-hop (~86% vs ~64%). Both auto-extract from prose? ~88% vs ~50% (gbrain's regex NER recovered just 44% of edges). gbrain does win simple 1-hop.<span class="img">🖼 Shot 1 (scorecard table)</span></div>
+        <div class="tw" id="b4">4/ The real story: HydraDB's edge is robust prose→graph extraction + multi-hop, in one recall() call vs a 6-stage pipeline - 29× less code. Small synthetic corpus, hosted service - caveats in the repo.
 
 A benchmark you can't rerun is marketing. Rerun mine:
 https://hydrabrain-benchmarks.vercel.app/blog<span class="img">🖼 Shot 5 (pull-quote) or Shot 3 (architecture)</span></div>
@@ -136,14 +137,14 @@ https://hydrabrain-benchmarks.vercel.app/blog<span class="img">🖼 Shot 5 (pull
   <!-- 3. SCREENSHOTS -->
   <section>
     <div class="sec-head"><span class="sec-num">03</span><h2>Screenshot strategy</h2></div>
-    <p class="sub">Capture on a desktop browser at ~1400px width, 2× (retina) for crispness. Twitter inline images render best at <b>16:9 / 1600×900</b>; it shows up to 4 per tweet. Always add the alt text — accessibility + reach.</p>
+    <p class="sub">Capture on a desktop browser at ~1400px width, 2× (retina) for crispness. Twitter inline images render best at <b>16:9 / 1600×900</b>; it shows up to 4 per tweet. Always add the alt text - accessibility + reach.</p>
     <div class="tbl-scroll">
       <table>
         <thead><tr><th>#</th><th>Shot</th><th>Where to grab it</th><th>Crop / size</th><th>Attaches to</th><th>Alt text</th></tr></thead>
         <tbody>
           <tr>
             <td class="shot-n">1</td>
-            <td><b>The scorecard table</b><br>the money shot — 88 vs 77, multi-hop 86 vs 64, 1-hop loss visible</td>
+            <td><b>The scorecard table</b><br>the money shot - 88 vs 77, multi-hop 86 vs 64, 1-hop loss visible</td>
             <td><code>/</code> → §02 "Relational retrieval head-to-head" table</td>
             <td>Crop to the table; 16:9</td>
             <td><span class="pill a">A</span> <span class="pill b">B · 3/</span></td>
@@ -151,7 +152,7 @@ https://hydrabrain-benchmarks.vercel.app/blog<span class="img">🖼 Shot 5 (pull
           </tr>
           <tr>
             <td class="shot-n">2</td>
-            <td><b>The fairness-bugs panel</b><br>the credibility hook — "we fixed our own benchmark"</td>
+            <td><b>The fairness-bugs panel</b><br>the credibility hook - "we fixed our own benchmark"</td>
             <td><code>/</code> → §02 "The three fairness bugs we fixed" panel</td>
             <td>Crop to the panel; ~4:3</td>
             <td><span class="pill b">B · 2/</span></td>
@@ -159,7 +160,7 @@ https://hydrabrain-benchmarks.vercel.app/blog<span class="img">🖼 Shot 5 (pull
           </tr>
           <tr>
             <td class="shot-n">3</td>
-            <td><b>Architecture cards</b><br>29× / 1-vs-6 / 1-vs-4 — the simplicity flex</td>
+            <td><b>Architecture cards</b><br>29× / 1-vs-6 / 1-vs-4 - the simplicity flex</td>
             <td><code>/</code> → §01 "Architecture cost" three cards</td>
             <td>Crop to the 3 cards; wide 2:1</td>
             <td><span class="pill a">A</span> <span class="pill b">B · 4/</span></td>
@@ -167,8 +168,8 @@ https://hydrabrain-benchmarks.vercel.app/blog<span class="img">🖼 Shot 5 (pull
           </tr>
           <tr>
             <td class="shot-n">4</td>
-            <td><b>Terminal run</b><br>strongest proof — shows the integrity gate (100% edges) + RESULTS</td>
-            <td>Run it: <code>python3 -m bench.relational_v2 --seed-edges</code> — screenshot the terminal from the gate line through the RESULTS block</td>
+            <td><b>Terminal run</b><br>strongest proof - shows the integrity gate (100% edges) + RESULTS</td>
+            <td>Run it: <code>python3 -m bench.relational_v2 --seed-edges</code> - screenshot the terminal from the gate line through the RESULTS block</td>
             <td>Terminal, dark theme; 16:9</td>
             <td><span class="pill b">B · 1/</span></td>
             <td>Terminal output: gbrain typed edges 100% correct, then R@5 gbrain 77.4% HydraDB 88.4%.</td>
@@ -183,7 +184,7 @@ https://hydrabrain-benchmarks.vercel.app/blog<span class="img">🖼 Shot 5 (pull
           </tr>
           <tr>
             <td class="shot-n">6</td>
-            <td><b>Per-hop honesty</b> <span class="pill b">optional</span><br>1-hop gbrain wins / 2-hop HydraDB wins — the nuance</td>
+            <td><b>Per-hop honesty</b> <span class="pill b">optional</span><br>1-hop gbrain wins / 2-hop HydraDB wins - the nuance</td>
             <td><code>/</code> → §02 table rows for 1-hop &amp; 2-hop</td>
             <td>Tight crop, 2 rows</td>
             <td>reply / QT</td>
@@ -199,31 +200,31 @@ https://hydrabrain-benchmarks.vercel.app/blog<span class="img">🖼 Shot 5 (pull
   <section>
     <div class="sec-head"><span class="sec-num">04</span><h2>Posting sequence</h2></div>
     <ol class="play">
-      <li><b>Pre-flight.</b> Open <code>/</code> and <code>/blog</code>, confirm they load. Capture Shots 1–5 at 2×. Run the terminal command live for Shot 4 (it's the most convincing image).</li>
+      <li><b>Pre-flight.</b> Open <code>/</code> and <code>/blog</code>, confirm they load. Capture Shots 1-5 at 2×. Run the terminal command live for Shot 4 (it's the most convincing image).</li>
       <li><b>Pick the lane.</b> Thread (Option B) converts best for technical credibility; the single tweet (Option A) is the fast-share. You can post A, then quote-tweet it later with the thread.</li>
       <li><b>Compose the thread.</b> Paste tweets 1→4. Attach the image cue shown on each. Add alt text from the table to every image.</li>
       <li><b>Keep the loss in.</b> Do not edit out "gbrain wins 1-hop." It's what makes someone trust the 88-vs-77. Removing it is how this becomes the overclaim.</li>
-      <li><b>Land the CTA.</b> Final tweet links the blog. Pin the thread. Consider tags: <code>#RAG</code> <code>#LLM</code> <code>#AgentMemory</code>. Mention gbrain respectfully — a fair comparison, never a dunk.</li>
-      <li><b>After it's up.</b> Reply with Shot 6 (the per-hop nuance) for anyone who asks "where does gbrain win?" — pre-empts the obvious pushback.</li>
+      <li><b>Land the CTA.</b> Final tweet links the blog. Pin the thread. Consider tags: <code>#RAG</code> <code>#LLM</code> <code>#AgentMemory</code>. Mention gbrain respectfully - a fair comparison, never a dunk.</li>
+      <li><b>After it's up.</b> Reply with Shot 6 (the per-hop nuance) for anyone who asks "where does gbrain win?" - pre-empts the obvious pushback.</li>
     </ol>
   </section>
 
   <!-- 5. THE BLOG -->
   <section>
-    <div class="sec-head"><span class="sec-num">05</span><h2>The full blog</h2></div>
-    <p class="sub">Embedded live below (single source of truth) — also at <a href="/blog" target="_blank" style="color:var(--hydra)">/blog</a>. Title: <i>"I caught my own benchmark lying about HydraDB."</i></p>
+    <div class="sec-head"><span class="sec-num">05</span><h2>The blogs</h2></div>
+    <p class="sub">Two posts, two lanes. <b>Blog 1</b> (<a href="/blog" target="_blank" style="color:var(--hydra)">/blog</a>) is the honesty story + the "don't trust any benchmark" checklist. <b>Blog 2</b> (<a href="/multihop" target="_blank" style="color:var(--hydra)">/multihop</a>) is the substance: why search bars can't answer multi-hop questions and a graph can. Blog 1 embedded live below.</p>
     <iframe class="frame" src="/blog" title="HydraDB benchmark blog" loading="lazy"></iframe>
   </section>
 
   <footer>
-    <p>Internal launch kit for the hydrabrain benchmark. Numbers settled 2026-06-23 (hosted → quote ranges). Don't share this URL publicly — it's the playbook, not the post.</p>
+    <p>Internal launch kit for the hydrabrain benchmark. Numbers settled 2026-06-23 (hosted → quote ranges). Don't share this URL publicly - it's the playbook, not the post.</p>
   </footer>
 
 </main>
 <script>
   var tweets = {
     a: document.getElementById('a').innerText.replace(/🖼[^\n]*/g,'').trim(),
-    b: [1,2,3,4].map(function(n){return document.getElementById('b'+n).innerText.replace(/🖼[^\n]*/g,'').trim();}).join('\n\n———\n\n')
+    b: [1,2,3,4].map(function(n){return document.getElementById('b'+n).innerText.replace(/🖼[^\n]*/g,'').trim();}).join('\n\n---\n\n')
   };
   document.querySelectorAll('.copy').forEach(function(btn){
     btn.addEventListener('click', function(){
