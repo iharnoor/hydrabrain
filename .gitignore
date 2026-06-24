@@ -62,3 +62,9 @@ bench/relational_results.json
 
 build/
 dist/
+
+# bench: local gbrain brains for relational_v2 (PGLite DBs, regenerable)
+bench/.gbrain-relv2/
+bench/.gbrain-relv2-seeded/
+# nested parallel-session working copy (its own git repo — never track)
+hydrabrain-fork different claude session/
