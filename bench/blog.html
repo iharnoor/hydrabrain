@@ -304,11 +304,13 @@
 
     <h2><span class="num">02</span>Rebuilt fair</h2>
 
+    <p>Four fixes, so the test could not be rigged again:</p>
+
     <ul>
-      <li>Same prose into both engines.</li>
-      <li>An integrity gate that <em>aborts</em> if gbrain's edges are missing or mis-typed. You cannot re-run the original lie.</li>
-      <li>gbrain's relational arm on.</li>
-      <li>Then the killer: I handed gbrain a <strong>100%-correct, hand-seeded graph</strong> using its own method. Best-case gbrain, no extraction excuse left.</li>
+      <li><strong>Same notes into both.</strong> Both engines read the exact same text. Neither gets a head start.</li>
+      <li><strong>A safety check.</strong> Before any score prints, the test confirms gbrain actually built its relationship links and labeled them correctly. If it did not, the run stops. No more scoring gbrain with an empty graph.</li>
+      <li><strong>Graph search switched on.</strong> gbrain's graph lookup is off by default; it normally just does plain text search. I turned it on so gbrain actually uses its graph to answer.</li>
+      <li><strong>Then the big one.</strong> Instead of letting gbrain build the graph from text, where it makes mistakes, I handed it a perfect graph by hand, using gbrain's own official method. That is gbrain at its absolute best, so nobody can say I won by breaking it.</li>
     </ul>
 
     <h2><span class="num">03</span>The result</h2>
