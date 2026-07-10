@@ -61,4 +61,4 @@ HydraDB is the backend for the `hydrabrain/` reimplementation and **all new work
 ## See also
 
 - [`README.md`](README.md) — overview and quickstart.
-- [`BENCHMARKS.md`](BENCHMARKS.md) — results, including HydraDB recall@5 of 96.5% vs the full-stack baseline's 92.1%.
+- [`BENCHMARKS.md`](BENCHMARKS.md) — fair head-to-head vs the real gbrain binary (graph ON): relational R@5 88.4% vs 77.4%, multi-hop 86.0% vs 63.8%.

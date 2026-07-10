@@ -80,6 +80,7 @@
   main{padding:48px 0 80px}
   main .wrap > *{margin-left:auto;margin-right:auto}
   p{margin:0 0 22px}
+  .lede{font-size:21px;line-height:1.6;color:var(--bright)}
   main p,main ul,main ol,main h2,main h3,main .note{max-width:65ch;margin-left:auto;margin-right:auto}
   h2{
     font-family:var(--mono);
@@ -333,7 +334,9 @@
       </table>
     </div>
 
-    <p><strong>gbrain wins clean 1-hop lookups, 100 to 92.</strong> One edge away with a perfect graph, its traversal is flawless. But the questions worth asking are rarely one edge away. On <strong>multi-hop</strong> ("which fund backed the company person-00 works at") HydraDB holds 86.0% to gbrain's 63.8%, even with gbrain's graph hand-built to perfection. That is the gap that matters, and it is HydraDB's.</p>
+    <p><strong>gbrain wins clean 1-hop lookups, 100 to 92 - but only with that perfect, hand-built graph.</strong> One edge away, its traversal is flawless. Read that carefully though: 92% is HydraDB's <em>strongest</em> tier, not a weak spot, and the moment you make both engines extract edges from prose the way they would in production, HydraDB wins single-hop too (91% to 84%). gbrain's single-hop edge lives entirely inside the artificial control.</p>
+
+    <p>And the questions worth asking are rarely one edge away. On <strong>multi-hop</strong> ("which fund backed the company person-00 works at") HydraDB holds 86.0% to gbrain's 63.8%, even with gbrain's graph hand-built to perfection. That is the gap that matters, and it is HydraDB's under every condition.</p>
 
     <p>And that is gbrain at its best. Make both engines extract from raw prose, the way they would in production, and gbrain falls to ~50% recall (its regex extractor recovers only ~44% of the relationships) while HydraDB holds ~88%. Feed both the same documents and HydraDB builds the better graph.</p>
 
@@ -370,7 +373,7 @@
       <li><strong>Multi-hop:</strong> HydraDB wins, even against a perfect gbrain graph.</li>
       <li><strong>Extraction from prose:</strong> HydraDB wins, by a lot.</li>
       <li><strong>Simplicity:</strong> one call, one service, ~29x less code.</li>
-      <li><strong>1-hop:</strong> gbrain wins. Single-edge lookups on a clean local graph are its sweet spot.</li>
+      <li><strong>1-hop:</strong> gbrain wins <em>only</em> when handed a perfect, hand-built graph (100 to 92). HydraDB is strong at single-hop regardless - it is HydraDB's best tier - and wins single-hop (91 to 84) once both engines extract from prose.</li>
     </ul>
 
     <p>Caveats, once: small synthetic corpus (50 entities, 149 queries), and HydraDB is hosted, so it is non-deterministic and drifts a few points per run. Signal, not scripture.</p>

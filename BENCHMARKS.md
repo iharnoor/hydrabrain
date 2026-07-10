@@ -1,226 +1,315 @@
-# Benchmark Report — hydrabrain (HydraDB) vs gbrain's retrieval stack
+# Benchmark Report — hydrabrain (HydraDB) vs the real gbrain binary
 
-**Date:** 2026-06-17 · **Author:** Harnoor Singh · **Repo:** fork of [garrytan/gbrain](https://github.com/garrytan/gbrain)
+**Author:** Harnoor Singh · **Repo:** fork of [garrytan/gbrain](https://github.com/garrytan/gbrain)
 
 This report records exactly what we benchmarked, how, on which data, and the verbatim
-numbers our harness produced. It is written to be checkable: every result here is
-regenerable with the commands in §10, and the raw outputs are in §11.
+numbers our harness produced. Every result here regenerates from the commands in §8, and
+the raw outputs are the committed JSON files in §9.
+
+> **Note on an earlier version of this report.** A prior BENCHMARKS.md reported a HydraDB
+> win (recall@5 96.5% vs 92.1%) against a *reproduction of gbrain's pipeline with the
+> knowledge graph removed*. That was not a HydraDB-vs-gbrain result — it only showed
+> "graph beats no-graph," which is what gbrain itself claims. Those numbers are **retired**.
+> Everything below runs against the **real gbrain binary** that ships in this fork's `src/`
+> (PGLite, Gemini embeddings, typed-edge graph ON, relational arm engaged), on the same
+> corpus, with both systems building their own graph.
 
 ---
 
 ## 0. TL;DR
 
-| Benchmark | Dataset | HydraDB | gbrain-stack | Verdict |
+| Benchmark | Opponent | HydraDB | Opponent | Verdict |
 |---|---|:---:|:---:|---|
-| **#1 recall@5** vs gbrain **full stack** (+reranker) | 19-doc local, 19 queries | **96.5%** | 92.1% | HydraDB **+4.4** |
-| **#1 recall@5** vs gbrain **fusion core** (no reranker) | same | **96.5%** | 75.4% | HydraDB **+21.1** |
-| **#1 MRR** vs full stack | same | 0.912 | **0.947** | gbrain (ordering) |
-| **#1 answers correct** (LLM-judge) vs full stack | same | **12/19** | 8/19 | HydraDB |
-| **#2 QA accuracy** (LongMemEval **oracle**, *partial* 18/500) | downloaded | 50.0% | **77.8%** | *not conclusive — see §7* |
-| **#2** LongMemEval **full `_s`** (500×~48 sessions) | not downloaded | — | — | **NOT RUN** (see §7) |
+| **Relational R@5** — gbrain handed a **perfect graph** | real gbrain, graph ON | **88.4%** | 77.4% | HydraDB **+11** |
+| **Relational R@5** — both **auto-extract from prose** | real gbrain, graph ON | **88.0%** | 50.0% | HydraDB **+38** |
+| **1-hop R@5** — perfect graph | real gbrain | 92.3% | **100.0%** | gbrain **+8** |
+| **1-hop R@5** — auto-extract | real gbrain | **91.4%** | 84.2% | HydraDB **+7** |
+| **2-hop / multi-hop R@5** — perfect graph | real gbrain | **86.0%** | 63.8% | HydraDB **+22** |
+| **2-hop / multi-hop R@5** — auto-extract | real gbrain | **86.0%** | 29.4% | HydraDB **+57** |
+| **MRR** — perfect graph | real gbrain | **0.894** | 0.826 | HydraDB |
+| **Retrieval code surface** | real gbrain | **327 LOC / 1 call** | 9,345 LOC / 6 stages | HydraDB **29×** |
+| **LongMemEval-S QA accuracy** (at scale) | **BM25 baseline** | **38.1%** | 16.7% | HydraDB (vs BM25, *not* gbrain) |
+| **LongMemEval oracle QA** (90 q, fixed harness) | gbrain-stack reproduction (chunked, no graph) | 45.6% | **56.7%** | **baseline wins QA** (evidence recall: HydraDB **100%** vs 98.9%) |
 
-**Honest one-liner:** on a small relational corpus, HydraDB's native graph edges a faithful
-reproduction of gbrain's *full* retrieval algorithm on recall@5 and answer accuracy (and far
-outperforms the no-reranker version), using one native `recall` call with no separate rerank
-stage. The at-scale claim (Benchmark #2 full split) is **not yet proven**.
+**Honest one-liner:** fed the same prose, HydraDB's graph-native retrieval beats the real gbrain
+binary **overall** and **dominates multi-hop under every condition** — in one `recall()` call vs
+a 6-stage pipeline. gbrain edges out **single-hop only when handed a hand-built perfect graph**;
+when both extract from prose, HydraDB wins single-hop too. The at-scale result is against a BM25
+baseline, **not** gbrain — that run is still owed. And on the LongMemEval oracle split HydraDB
+**loses QA to a graph-less baseline** (45.6% vs 56.7%) despite perfect evidence recall — a real
+weakness on single-needle answer synthesis, reported as such (§8).
+
+**On the single-hop question specifically:** HydraDB is *not* weak at single-hop. 92% is its
+**strongest** tier. gbrain's 1-hop win (100 vs 92) exists only inside the artificial
+perfect-graph control; under realistic extraction HydraDB wins single-hop (91 vs 84). The claim
+"single-hop is bad for HydraDB, multi-hop is better" is false — that shape describes *gbrain*
+(100 → 64), not HydraDB (92 → 86).
 
 ---
 
 ## 1. What we ran
 
-Two benchmarks, both comparing **HydraDB** against **a reproduction of gbrain's retrieval
-pipeline** (`bench/gbrain_stack.py`) — *not* a running gbrain instance (see §8).
-
-- **Benchmark #1 — relational-reasoning retrieval.** A small, dense, entity/temporal-heavy
-  corpus with gold-labelled queries that stress where pure vector search breaks (negation,
-  multi-session, temporal adjacency, entity direction, aggregation). Metric: `recall@5`
-  (gbrain's own P@5), plus MRR and an LLM-as-judge answer pass.
-- **Benchmark #2 — LongMemEval** (ICLR 2025), the standard long-term-memory benchmark: each
-  question carries its own multi-session chat haystack. Metric: QA accuracy (LLM-judge) +
-  evidence recall@5.
+- **Benchmark #1 — fair relational head-to-head** (`bench/relational_v2.py`). A synthetic
+  VC/startup network (~50 entities: 16 companies, 30 people, 4 funds), 149 gold-labelled queries
+  spanning 1-hop ("who works at company-00") and 2-hop ("which fund backed the company person-00
+  works at"). The regime where a graph should matter. Metrics: P@5, R@5 (gbrain's own pair) + MRR,
+  broken down by hop depth.
+- **Benchmark #2 — architecture** (`bench/architecture.py`). Deterministic, offline: lines of
+  retrieval code and services a maintainer owns, on each side.
+- **Benchmark #3 — LongMemEval-S at scale** (`bench/lme_scale.py`). The standard long-term-memory
+  benchmark, 42 questions × ~48 distractor sessions each. **Opponent is a BM25 baseline, not
+  gbrain.**
+- **Benchmark #4 — LongMemEval oracle** (`bench/longmemeval.py`). 90 questions (15 per ability),
+  evidence-only haystacks. Opponent: a gbrain-stack reproduction (dense+BM25+RRF, chunked like
+  real gbrain, no graph). The harness went through a five-bug fairness rebuild first — see §8.
 
 ---
 
 ## 2. Systems under test
 
 **HydraDB** — graph-native context store, hit over the **live API** (`api.hydradb.com`):
-- ingest: `POST /memories/add_memory` with `infer:true` (builds the graph, no extra LLM calls from us)
-- recall: `POST /recall/recall_preferences`, `mode=thinking`, `alpha=1.0`, `graph_context=true`
-- tenant `test1`; per-question isolation in #2 via `sub_tenant_id`
+- ingest: `add_memory(infer=True)` — builds the typed-edge graph, no extractor code from us
+- recall: one native `recall` call (`mode=thinking`, `graph_context=true`)
+- tenant isolation per source via `sub_tenant_id`
 
-**gbrain-stack (reproduction)** — gbrain's documented pipeline, built locally:
-- dense vectors (Gemini `gemini-embedding-001`, 3072-d) → exact cosine NN
-- BM25 (`rank_bm25` / BM25Okapi)
-- reciprocal-rank fusion (k=60)
-- **reranker** (Gemini listwise LLM reranker over the top-10) — `--rerank`; run **both** with and without
-- **no knowledge graph** (the variable under test)
-- **omitted:** source-tier boost (a no-op on a single-tier corpus); gbrain's actual MiniLM cross-encoder (we used a Gemini reranker, assumed ≥ as strong)
+**gbrain (real binary)** — the TypeScript gbrain that ships in this fork's `src/`, driven via
+`bun src/cli.ts`:
+- PGLite engine, Gemini embeddings (`gemini-embedding-001` via `GOOGLE_GENERATIVE_AI_API_KEY`)
+- typed-edge graph **on**; edges built from prose via `extract links --ner` (deterministic
+  schema-pack regex over the `gbrain-base` pack: `invested_in` / `works_at` / `founded` / `advises`)
+- relational arm engaged per query via `relational:true` (the graph walk is otherwise dormant on
+  the vector-dominant default path)
 
-**Shared answerer + judge:** Gemini 2.5 Flash generates a one-sentence answer from each
-system's top-5 and grades it YES/NO against the gold answer (same model both sides).
-
----
-
-## 3. Models & environment
-
-| Component | Value |
-|---|---|
-| HydraDB API | `https://api.hydradb.com` (live) |
-| Embedder (baseline) | `gemini-embedding-001` (3072-d) |
-| Answer + judge + reranker LLM | `gemini-2.5-flash` |
-| BM25 | `rank_bm25` BM25Okapi |
-| Runtime | Python 3.14, macOS |
-| Determinism | Benchmark #1 identical across 3 repeated runs |
+Both sides build their graph **their own documented way, from the same prose.**
 
 ---
 
-## 4. Datasets — local / partial / full
+## 3. The fairness bugs we found in our *own* harness
 
-| Dataset | Where from | Size | Used | Partial/Full |
-|---|---|---|---|---|
-| **Relationship timeline** (Benchmark #1) | local (`bench/dataset.py`) | 19 "pages", 19 gold queries | all 19 | **Full** (this is the entire corpus, not a sample) |
-| **LongMemEval `oracle`** | downloaded from HF `xiaowu0162/longmemeval` | 500 questions, ~15 MB (evidence sessions only) | **18** (balanced 3×6 types) | **Partial sample** of a split that itself omits distractors |
-| **LongMemEval `_s`** | HF `xiaowu0162/longmemeval-cleaned` | 500 questions × ~48 sessions, ~264 MB | — | **Full — NOT downloaded / NOT run** |
+An earlier harness showed a HydraDB blowout. It was wrong — unfair to gbrain. Three bugs, all
+now guarded:
 
-Benchmark #1's corpus is **local demo data** (an intercultural relationship timeline) — small
-but deliberately hard for vector search. Benchmark #2 is **public academic data**; we ran only
-the small oracle sample, and the heavy full split remains to be run.
+1. **gbrain's graph wasn't being built.** `put`/`embed` alone only wires `[[wikilinks]]` +
+   frontmatter, not prose like "alice invested in widget-co." So the graph was **empty** and
+   gbrain's relational arm walked nothing. Fixed: run `extract links --ner`; an **integrity gate
+   aborts scoring if the typed-edge count is 0.**
+2. **Edges were mis-typed.** On dense prose, gbrain's NER labelled `works_at` as `founded`. The
+   gate now checks edge-type **correctness**, not just count.
+3. **gbrain's relational arm sat dormant.** The default query path is vector-dominant; the graph
+   walk only engages with `relational:true`. Fixed: on.
 
----
-
-## 5. Metrics (definitions)
-
-- **recall@5** — fraction of a query's gold *keyword-groups* matched by ≥1 chunk in the top-5.
-  Groups are OR'd; keywords within a group are AND'd. Deterministic, no LLM in this scoring.
-- **MRR** — 1 / rank of the first chunk matching any gold group.
-- **QA accuracy (LLM-judge)** — Gemini grades the generated answer YES/NO vs the gold answer.
-  Abstention questions (`_abs`) are correct iff the model declines. *This metric is noisy* (±~2).
-- **evidence recall@5** (Benchmark #2) — did the top-5 include a gold *answer session*?
+We then went further and **handed gbrain a 100%-correct graph** (verified: 39/39 gold edges built
+with correct types) via its own published seeding method — the "perfect graph" control — so a
+HydraDB win can't be dismissed as "you broke gbrain's extraction."
 
 ---
 
-## 6. Benchmark #1 — results
+## 4. Metrics (definitions)
 
-**Headline (recall@5, top-k = 5, 19 queries):**
+- **R@5** — fraction of a query's gold answers matched by ≥1 result in the top-5.
+- **P@5** — fraction of the top-5 results that are gold.
+- **MRR** — 1 / rank of the first gold result.
+- Deterministic scoring; no LLM in the relational scorer.
 
-| Metric | HydraDB | gbrain full stack (+rerank) | gbrain fusion core |
-|---|:---:|:---:|:---:|
-| recall@5 | **96.5%** | 92.1% | 75.4% |
-| MRR | 0.912 | **0.947** | 0.675 |
-| answers correct (judge) | **12/19** | 8/19 | 8/19 (11/19 in a prior run — judge noise) |
-| per-query (vs full stack) | **2 win / 0 lose / 17 tie** | — | — |
+---
 
-**Reranker ablation (the key finding):** adding gbrain's reranker to the baseline lifted it
-**75.4% → 92.1%** — the single biggest lever. A reranker reorders retrieved candidates; it
-cannot surface a chunk retrieval never found. See README → *"What actually drives the accuracy."*
+## 5. Benchmark #1 — relational head-to-head (n = 149, k = 5)
 
-**Per-category recall@5 (HydraDB vs gbrain full stack + reranker):**
+### 5a. gbrain handed a perfect graph (`--seed-edges`) — the rebuttal-proof control
 
-| Capability | HydraDB | gbrain (+rerank) |
+Edges: 39 built / 39 correct-type / 39 gold-expected.
+
+| Metric | gbrain (perfect graph) | **HydraDB** | Edge |
+|---|:---:|:---:|---|
+| **R@5** overall | 77.4% | **88.4%** | HydraDB **+11** |
+| **P@5** overall | 25.6% | **28.9%** | HydraDB |
+| **MRR** | 0.826 | **0.894** | HydraDB |
+| **1-hop** R@5 (n=56) | **100.0%** | 92.3% | **gbrain +8** |
+| **2-hop** R@5 (n=93) | 63.8% | **86.0%** | HydraDB **+22** |
+
+### 5b. Both auto-extract from prose (the realistic condition)
+
+Edges (gbrain NER): 37 built / **17 correct-type** / 39 gold-expected — i.e. gbrain's regex NER
+recovered only **~44%** of the relationships correctly. That is *why* its realistic numbers drop.
+
+| Metric | gbrain (NER) | **HydraDB** | Edge |
+|---|:---:|:---:|---|
+| **R@5** overall | 50.0% | **88.0%** | HydraDB **+38** |
+| **MRR** | 0.317 | **0.894** | HydraDB |
+| **1-hop** R@5 (n=56) | 84.2% | **91.4%** | **HydraDB +7** |
+| **2-hop** R@5 (n=93) | 29.4% | **86.0%** | HydraDB **+57** |
+
+### 5c. Reading the two conditions
+
+- **Multi-hop is HydraDB's decisive, condition-independent win.** 86.0% both ways vs gbrain's 63.8%
+  (perfect graph) / 29.4% (realistic). Even hand-built to perfection, gbrain's traversal degrades
+  as soon as the destination shares no words with the query.
+- **Single-hop is not a HydraDB weakness.** 92.3% is HydraDB's best tier. gbrain only wins
+  single-hop (100 vs 92) with the artificial perfect graph; under realistic extraction HydraDB
+  wins single-hop too (91.4 vs 84.2).
+- **HydraDB's biggest edge is robust auto-extraction from raw prose.** Feed both the same
+  documents and HydraDB builds the more useful graph (88% vs 50% overall).
+
+---
+
+## 6. Benchmark #2 — architecture (deterministic, offline)
+
+HydraDB's retrieval surface is **~29× less code**: **327 LOC** behind one `recall()` call vs
+**9,345 LOC across 32 files** for gbrain's 6-stage pipeline (dense + BM25 + RRF + reranker +
+query-expansion + graph). **1 external service vs 4.** Regenerate: `python3 -m bench.architecture`.
+
+---
+
+## 7. Benchmark #3 — LongMemEval-S at scale (vs BM25, NOT gbrain)
+
+42 questions × ~48 distractor sessions each (`longmemeval_s_cleaned`), judge = Claude Haiku 4.5.
+
+| | HydraDB | BM25 baseline |
 |---|:---:|:---:|
-| Negation | **92%** | 67% |
-| Multi-Session Reasoning | **100%** | 83% |
-| Information Extraction | 100% | 100% |
-| Temporal Reasoning | 100% | 100% |
-| Temporal Adjacency | 100% | 100% |
-| Entity Direction | 100% | 100% |
-| Semantic Understanding | 100% | 100% |
-| Abstention | 100% | 100% |
-| Geographic Filtering | 100% | 100% |
-| Aggregation | 50% | 50% |
+| QA accuracy | **38.1%** | 16.7% |
+| evidence recall@5 | 97.6% | 97.6% (tied) |
 
-HydraDB ties or wins every category, loses none. The two remaining gaps (Negation,
-Multi-Session) are exactly where a reranker can't help — the answer chunk isn't near the query,
-so only a graph edge reaches it.
+**Read this carefully:** the opponent is **BM25, not gbrain.** With evidence recall tied, this
+says HydraDB turns retrieved evidence into correct answers far better than lexical search — and
+**nothing about gbrain.** Running LongMemEval-S against the real gbrain binary is the next owed
+result.
 
 ---
 
-## 7. Benchmark #2 — LongMemEval
+## 8. Benchmark #4 — LongMemEval oracle, 90 questions (2026-07-10, fixed harness)
 
-**What we ran:** a balanced **18-question sample** (3 each of the 6 ability types) from the
-**oracle** split. Each question's haystack ingested into an isolated namespace (HydraDB
-`sub_tenant_id = question_id`, verified non-leaking; fresh local index per question for the baseline).
+The oracle split of LongMemEval: each question ships ONLY its evidence sessions (1–4, no
+distractors). 90 questions, balanced 15 × 6 ability types. Opponent: the gbrain-stack
+reproduction (dense Gemini embeddings + BM25 + RRF, **chunked like real gbrain**, no graph, no
+reranker). Answerer + judge: Claude Haiku 4.5, identical for both sides.
 
-**Results (oracle, n=18):**
+### 8a. Five harness bugs we fixed before trusting a number
 
-| | HydraDB | gbrain-stack |
+An earlier 18-question version of this benchmark showed the baseline winning QA 77.8% vs 50.0%.
+A review flagged three problems; fixing those exposed two more. All five are now guarded:
+
+1. **Blind sleep raced HydraDB's async indexing.** Fixed: poll the namespace's row count until
+   it reaches the ingested count and stops changing (`bench/hydra_wait.py`).
+2. **The baseline didn't chunk.** It indexed whole multi-topic sessions as single units; on
+   oracle haystacks (fewer units than top-k) it returned everything and "won" recall by
+   default. Fixed: the baseline now chunks exactly like real gbrain (300 words / 50 overlap /
+   6000-char cap — verified against gbrain's own chunker source).
+3. **n=18 (3 per type) was noise.** One flipped answer swung a category ±33 pp. Fixed: n=90
+   (15 per type; ±10 pp overall, per-type gaps ≥25 pp start to mean something).
+4. **Row visibility ≠ retrievability** (found while validating fix 1). HydraDB lists a memory
+   before its index is queryable; count-based waiting still under-measured recall — 17/52
+   "misses" flipped to hits on re-query. Fixed: also poll the real query until its result set
+   is non-empty and stable across consecutive polls.
+5. **Cross-run namespace pollution** (found while validating fix 4). Prior runs on the same
+   tenant left ~48 distractor sessions in 35 of 52 namespaces (LongMemEval splits share
+   question ids), so HydraDB searched a ~50-session haystack while the baseline searched 1–4.
+   Fixed: each run now ingests into a verified-empty namespace.
+
+Bugs 1, 4 and 5 penalized only HydraDB; bug 2 handed the baseline its recall score; bug 3 made
+every per-type number untrustworthy. Full detail lives in the harness docstrings.
+
+### 8b. Results (n=90, top-k=5)
+
+| Metric | **HydraDB** | gbrain-stack (chunked, no graph) |
 |---|:---:|:---:|
-| QA accuracy | 50.0% | **77.8%** |
-| evidence recall@5 | 77.8% | **100.0%** |
+| evidence recall@5 | **100.0%** (90/90) | 98.9% (89/90) |
+| QA accuracy | 45.6% | **56.7%** |
 
-Per type (QA): single-session-assistant 100/100 · knowledge-update 67/100 · single-session-user
-67/100 · multi-session 33/67 · temporal 33/67 · preference 0/33 (H/B).
+QA by ability (n=15 each — single flip ≈ 6.7 pp):
 
-**⚠️ This result is NOT conclusive, and we do not present it as a HydraDB result:**
-1. **Oracle removes the retrieval challenge** — its haystacks contain only evidence sessions, no
-   distractors. The baseline trivially gets 100% evidence recall and feeds perfect context to the
-   same answerer, so HydraDB's actual edge (finding the needle among ~48 distractors) is never tested.
-2. **Indexing wait too short** — HydraDB evidence recall was only 78%, i.e. it sometimes failed to
-   return a session that was the *only* thing in its namespace, because `infer=true` graph-wiring
-   hadn't finished. Use `--hydra-wait 90`.
+| Ability | HydraDB | baseline |
+|---|:---:|:---:|
+| single-session-assistant | 86.7% | 86.7% |
+| single-session-user | 73.3% | 80.0% |
+| knowledge-update | 53.3% | 53.3% |
+| single-session-preference | 26.7% | **46.7%** |
+| temporal-reasoning | 20.0% | **46.7%** |
+| multi-session | 13.3% | 26.7% |
 
-**The decisive run — full `_s` split with distractors — has NOT been run** (264 MB, ~500×48
-sessions, multi-hour, high API cost). That is the test that would actually prove or disprove
-HydraDB's at-scale advantage. Command in §10.
+### 8c. Honest reading
 
----
+- **Retrieval is not the problem — HydraDB's recall is perfect here** (and the earlier
+  "HydraDB can't find things" signal was 100% harness artifact). But recall@5 on the oracle
+  split is near-ceiling for everyone by design (tiny haystacks); it is not a differentiating
+  metric — and that cuts against our own 90/90 too: 45 of 90 questions have single-session
+  haystacks, where "found the evidence" collapses to "returned anything at all". Treat 100%
+  as a health check (no indexing losses, no empty result sets — 89 of 90 scored on the
+  question's own namespace; one scored via a fresh namespace after a post-delete indexing
+  failure, noted in its row). See Benchmark #3 for recall under real distractor load.
+- **HydraDB loses QA on this split, 45.6% vs 56.7%.** Both systems retrieve the right session;
+  answers generated from the baseline's chunks are judged correct more often. The gap
+  concentrates in temporal-reasoning and preference questions. At n=90 the ~11 pp overall gap
+  is at the edge of significance, but it has been directionally stable all run — we report it
+  as a loss, not noise.
+- **This is a loss to a baseline weaker than gbrain** (no graph, no reranker). It does NOT
+  show "gbrain beats HydraDB" — the real-gbrain at-scale run is still owed — but it is a real
+  result about answer synthesis from HydraDB's retrieved chunk shapes on single-needle
+  questions, and we're not burying it.
 
-## 8. Fairness controls & footguns we found
+### 8d. Operational notes for reproducers (cost us a day — read before running)
 
-Engineered to be **hard for HydraDB to win**, so a win means something:
-- Baseline got the **better embedder** (Gemini 3072-d) **and** a strong **LLM reranker**.
-- HydraDB ran in its best documented config (`mode=thinking, alpha=1.0`).
-- **Identical, de-duplicated corpus** for both sides.
-
-Real footguns caught and fixed (all logged honestly in the README):
-- `alpha=0.8` starved HydraDB's keyword signal → 54%. Fixed to `1.0`.
-- A stale tenant had the corpus ingested **twice** (38 docs stealing top-5 slots) → wiped clean.
-- HydraDB's `infer=true` indexing is **async** → must wait for it to settle before measuring.
-- Our first baseline **lacked gbrain's reranker** → adding it moved the baseline 75.4% → 92.1%,
-  shrinking HydraDB's lead from +21 to +4.4. We report both.
+- HydraDB indexing is asynchronous with no readiness API: poll retrievability, not row counts
+  (`bench/hydra_wait.py` does both stages).
+- HydraDB `delete_memory` requires `sub_tenant_id` for namespaced rows — without it the API
+  returns HTTP 200 `{"success": false}` and deletes nothing (fixed in `hydrabrain/client.py`).
+- After a bulk delete, one namespace never re-indexed new content (stored but unsearchable;
+  same content indexed fine in a fresh namespace). The harness therefore never reuses a dirty
+  namespace — it walks to a fresh suffixed one.
+- Gemini's free tier caps embeddings at 1,000 REQUESTS/day: the harness batches ~50 texts per
+  request and checkpoints every question (`--fresh` to rescore), so a quota wall costs a
+  resume, not a rerun.
 
 ---
 
 ## 9. Limitations — what this does NOT prove
 
-- **We did not run gbrain or pgvector.** The opponent is a reproduction of gbrain's *documented
-  algorithm*, not its code/DB. This proves *"HydraDB's graph beats that algorithm,"* not *"we beat
-  gbrain head-to-head."*
-- **Benchmark #1 is 19 documents.** A small relational probe, not an at-scale benchmark.
-- **HydraDB loses MRR** (0.912 vs 0.947) — slightly worse top-5 ordering.
-- **The LLM-judge metric is noisy** (±~2 between runs).
-- **The only at-scale test attempted (oracle) did not favor HydraDB** and is non-conclusive (§7).
-- Reranker is a Gemini LLM, *assumed* ≥ gbrain's MiniLM; not verified against the real one.
+- **The relational corpus is small and synthetic** — 50 entities, 149 queries. A relational probe,
+  not an at-scale benchmark. gbrain's own published R@5 is 97.9% on a 240-doc corpus.
+- **gbrain wins single-hop under its perfect-graph control** (100 vs 92). HydraDB's win is
+  *overall + multi-hop + extraction*, not every cell.
+- **HydraDB is hosted** → results are **not bit-deterministic** (drift a few points per run; quote
+  ranges) and it carries uptime + per-call cost risk vs gbrain's local-first PGLite. gbrain's side
+  is deterministic.
+- **The at-scale result (§7) is vs BM25, not gbrain.** Evidence recall was tied. Running gbrain at
+  this scale is not yet done.
+- **HydraDB loses oracle-split QA (§8) to a graph-less baseline** (45.6% vs 56.7%, n=90). A real
+  finding about answer synthesis on single-needle questions — stated plainly, not explained away.
+  It is not a gbrain-vs-HydraDB result (the baseline lacks gbrain's graph and reranker).
+- **The LLM-judge metric is noisy** (single flips move a per-type cell ~7 pp at n=15).
 
 ---
 
 ## 10. Reproduce
 
 ```bash
-pip install rank-bm25 mcp requests python-dotenv google-genai
-# .env: HYDRADB_API_KEY, GEMINI_API_KEY
+pip install requests python-dotenv google-genai anthropic rank-bm25 huggingface_hub
+# .env: HYDRADB_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY
+#       (GEMINI_API_KEY is also exported as GOOGLE_GENERATIVE_AI_API_KEY for gbrain)
+# gbrain side of Benchmark #1 needs Bun (runs `bun src/cli.ts`).
 
-# Benchmark #1 — full stack (with gbrain's reranker), the honest headline
-python3 -m bench.run_bench --ingest --rerank --judge --report      # → bench/report.html
-# Benchmark #1 — fusion core (no reranker), the +21 picture
-python3 -m bench.run_bench --judge                                  # omit --rerank
-# Benchmark #1 — baseline only, offline
-python3 -m bench.run_bench --no-hydra --rerank
+# Benchmark #1 — fair relational head-to-head, gbrain handed a perfect graph (headline)
+python3 -m bench.relational_v2 --seed-edges --report
+# Benchmark #1 — realistic: both auto-extract from prose
+python3 -m bench.relational_v2 --report
 
-# Benchmark #2 — oracle sanity sample (auto-downloads oracle)
-python3 -m bench.longmemeval --limit 18 --report                    # → bench/longmemeval_report.html
-# Benchmark #2 — DECISIVE full _s run (heavy)
-hf download xiaowu0162/longmemeval-cleaned longmemeval_s_cleaned.json --repo-type dataset --local-dir bench/data
-python3 -m bench.longmemeval --data bench/data/longmemeval_s_cleaned.json --limit 100 --hydra-wait 90 --report
+# Benchmark #2 — architecture (offline, deterministic)
+python3 -m bench.architecture
+
+# Benchmark #3 — LongMemEval-S at scale (vs BM25 baseline)
+python3 -m bench.lme_scale --limit 42
+
+# Benchmark #4 — LongMemEval oracle, 90 questions (auto-downloads the dataset,
+# checkpoints every question, resumes across quota walls; --fresh to rescore)
+python3 -m bench.longmemeval --report
 ```
 
 ---
 
-## 11. Artifacts
+## 11. Artifacts (raw outputs, committed)
 
-- `bench/results.json` — Benchmark #1 raw per-query output (gitignored; regenerate via §10)
-- `bench/report.html` — Benchmark #1 visual report
-- `bench/longmemeval_results.json` — Benchmark #2 raw output (gitignored)
-- `bench/longmemeval_report.html` — Benchmark #2 visual report
-- `bench/assets/recall.svg` — recall@5 chart
-- code: `bench/run_bench.py`, `bench/gbrain_stack.py`, `bench/longmemeval.py`, `bench/dataset.py`
+- `bench/relational_v2_seeded_results.json` — perfect-graph control, raw per-query + summary
+- `bench/relational_v2_results.json` — realistic auto-extract, raw per-query + summary
+- `bench/lme_scale_results.json` — LongMemEval-S at-scale raw output
+- `bench/longmemeval_results.json` — LongMemEval oracle raw output (every answer + judgment)
+- code: `bench/relational_v2.py`, `bench/architecture.py`, `bench/lme_scale.py`,
+  `bench/longmemeval.py`, `bench/gbrain_stack.py`, `bench/hydra_wait.py`
