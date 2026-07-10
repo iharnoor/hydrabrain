@@ -94,7 +94,7 @@ raw per-question receipts are committed in [`bench/`](bench/); the full audit tr
 | Synthesis (cited answers) | ✅ | `think` - Gemini grounding over HydraDB chunks |
 | Graph traversal / explore | 🟡 | `graph_relations` by `source_id` only |
 | Status / list / delete / wipe | ✅ | tenant + memory count, live deletes |
-| CLI (`hydrabrain`) | ✅ | 14 commands incl. sync/read/enrich/briefing/export/chat |
+| CLI (`hydrabrain`) | ✅ | 19 commands incl. sync/read/enrich/briefing/export/chat/doctor |
 | MCP server | ✅ | 8 tools: capture/read_url/search/think/briefing/enrich/graph/status |
 | **Fair relational head-to-head (vs real gbrain, graph ON)** | ✅ | **DONE - HydraDB wins overall + multi-hop even with gbrain handed a perfect graph:** R@5 88.4% vs 77.4%, 2-hop 86.0% vs 63.8%, MRR 0.894 vs 0.826; when both auto-extract from prose, 88.0% vs 50.0%. gbrain wins 1-hop *only* with a hand-built perfect graph (100% vs 92%); HydraDB wins 1-hop under realistic extraction (91% vs 84%). Reproduce: `python3 -m bench.relational_v2 --seed-edges --report`. |
 | Architecture (retrieval surface) | ✅ | **29× less code** - 327 LOC (one `recall()`) vs 9,345 across 32 files (6 stages). Deterministic, offline: `python3 -m bench.architecture`. |
@@ -465,7 +465,7 @@ python3 -m bench.lme_scale --data bench/data/longmemeval_s_cleaned.json --limit 
 | Export / portability | `brain.export(dir)` / `hydrabrain export <dir>` → Markdown + manifest |
 | Chat | `hydrabrain chat` (REPL) **and** `hydrabrain web` (zero-dep web UI for creators) |
 | Cron / scheduling | `hydrabrain cron add/list/remove` - OS crontab wrapper; [playbook](demos/cron-playbook.html) |
-| CLI | `hydrabrain` - init/status/capture/ingest/sync/read/search/think/chat/web/briefing/enrich/graph/export/cron/jobs/serve/bench |
+| CLI | `hydrabrain` - init/status/doctor/capture/ingest/sync/read/search/think/chat/web/briefing/enrich/graph/export/cron/jobs/serve/bench |
 
 ### CLI
 
@@ -545,13 +545,17 @@ hydrabrain/        the gbrain-style memory engine on HydraDB
   web/index.html   the single-page creator app (add link/note, cited chat)
   web/setup.html   first-run setup screen (Free-mode vs keys)
   synth.py         synthesis layer - cited answer + gap analysis (Gemini)
-  cli.py           the hydrabrain CLI (15 cmds)   mcp_server.py   MCP stdio server (8 tools)
+  cli.py           the hydrabrain CLI (19 cmds)   mcp_server.py   MCP stdio server (8 tools)
   config.py        env + recall tuning + brain/source defaults (mode=thinking, alpha=1.0)
 bench/
+  relational_v2.py Benchmark #1 - fair relational head-to-head vs real gbrain (graph ON)
+  architecture.py  Benchmark #2 - retrieval-surface size comparison (deterministic, offline)
+  lme_scale.py     Benchmark #3 - LongMemEval-S at scale vs BM25 → lme_scale_results.json
+  longmemeval.py   Benchmark #4 - LongMemEval oracle QA + evidence → longmemeval_report.html
+  hydra_wait.py    indexing-wait + namespace verify/wipe helpers shared by the harnesses
+  gbrain_stack.py  gbrain-style baseline pipeline: dense + BM25 + RRF, NO graph
   dataset.py       19 pages + 19 gold test cases (dependency-free)
-  gbrain_stack.py  faithful gbrain pipeline: dense + BM25 + RRF, NO graph
-  run_bench.py     Benchmark #1 - recall@5 / MRR / LLM-judge   → report.html
-  longmemeval.py   Benchmark #2 - LongMemEval QA + evidence    → longmemeval_report.html
+  run_bench.py     legacy recall@5 / MRR / LLM-judge harness   → report.html
   data/            LongMemEval splits (oracle auto-downloaded; _s on demand)
 demos/
   cron-playbook.html        interactive enterprise guide - cron push → HydraDB → agent pull
