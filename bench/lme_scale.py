@@ -26,7 +26,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -74,31 +73,41 @@ def is_evidence(retrieved_sids: list[str], gold_sids: list[str]) -> bool:
 
 # ── BM25 baseline ──────────────────────────────────────────────────────────────
 
-def run_bm25(q: dict, units: list[tuple[str, str]]) -> tuple[list[str], list[str]]:
+def run_bm25(q: dict, units: list[tuple[str, str]],
+             k: int = TOP_K) -> tuple[list[str], list[str]]:
     """Pure BM25 lexical retrieval — no embeddings, no API."""
     from rank_bm25 import BM25Okapi
     docs = [txt for _, txt in units]
     bm25 = BM25Okapi([_tok(d) for d in docs])
     scores = bm25.get_scores(_tok(q["question"]))
     order = sorted(range(len(docs)), key=lambda i: scores[i], reverse=True)
-    texts = [docs[i] for i in order[:TOP_K]]
-    sid_by_text = {txt: sid for sid, txt in units}
-    sids = [sid_by_text.get(t, "") for t in texts]
+    # Rank indices, not texts — duplicate session texts must not collapse.
+    texts = [docs[i] for i in order[:k]]
+    sids = [units[i][0] for i in order[:k]]
     return texts, sids
 
 
 # ── Claude LLM judge ──────────────────────────────────────────────────────────
 
+_CLAUDE_CLIENT = None
+
+
 def _claude():
-    import anthropic
-    return anthropic.Anthropic()
+    # One client for the whole run — reuses the SDK's connection pool instead
+    # of a fresh TLS handshake on every answer/judge call.
+    global _CLAUDE_CLIENT
+    if _CLAUDE_CLIENT is None:
+        import anthropic
+        _CLAUDE_CLIENT = anthropic.Anthropic()
+    return _CLAUDE_CLIENT
 
 
-def generate_answer(contexts: list[str], question: str, model: str) -> str:
+def generate_answer(contexts: list[str], question: str, model: str,
+                    k: int = TOP_K) -> str:
     """Generate a one-sentence answer from retrieved contexts using Claude."""
     if not contexts:
         return "I don't know."
-    ctx = "\n\n---\n\n".join(contexts[:TOP_K])
+    ctx = "\n\n---\n\n".join(contexts[:k])
     try:
         client = _claude()
         msg = client.messages.create(
@@ -163,23 +172,15 @@ def _best_session(chunk: str, units: list[tuple[str, str]]) -> str:
     return best_sid
 
 
-def run_hydra(client: HydraDBClient, q: dict, units: list[tuple[str, str]],
-              wait: int) -> tuple[list[str], list[str]]:
-    """Ingest sessions under a per-question namespace, wait, retrieve."""
-    qid = q["question_id"]
-    # Ingest all sessions
-    for _sid, txt in units:
-        client.add_memory(txt, infer=True, sub_tenant_id=qid)
-    # Wait for async graph wiring to settle
-    time.sleep(wait)
-    chunks = client.recall_preferences(
-        q["question"], max_results=TOP_K, graph_context=True,
-        mode=config.HYDRA_RECALL_MODE, alpha=config.HYDRA_RECALL_ALPHA,
-        sub_tenant_id=qid,
-    )
-    texts = [c.text for c in chunks]
-    sids = [_best_session(c.text, units) for c in chunks]
-    return texts, sids
+def fresh_namespace(client: HydraDBClient, qid: str) -> str:
+    """First EMPTY namespace for this question. Never wipe-and-reuse: prior runs
+    (this harness or longmemeval — LongMemEval splits share question_ids) leave
+    stale sessions that would silently join the haystack, and a wiped namespace
+    can end up search-dead (see bench/hydra_wait.wipe_namespace docstring)."""
+    for ns in [qid] + [f"{qid}-s{i}" for i in range(2, 10)]:
+        if client.count(sub_tenant_id=ns) == 0:
+            return ns
+    raise RuntimeError(f"{qid}: no empty namespace found after 9 suffixes")
 
 
 # ── balanced sampler ──────────────────────────────────────────────────────────
@@ -213,8 +214,9 @@ def main(argv=None):
                     help="number of questions to run (balanced across ability types)")
     ap.add_argument("--types", default="",
                     help="comma-separated question_type filter (empty = all)")
-    ap.add_argument("--hydra-wait", type=int, default=90,
-                    help="seconds to wait for HydraDB async graph wiring per question")
+    ap.add_argument("--hydra-wait", type=int, default=180,
+                    help="per-namespace TIMEOUT for HydraDB async indexing — the harness "
+                         "polls until the count settles, so this is a cap, not a sleep")
     ap.add_argument("--no-hydra", action="store_true", help="skip HydraDB, BM25 baseline only")
     ap.add_argument("--no-bm25", action="store_true", help="skip BM25 baseline, HydraDB only")
     ap.add_argument("-k", type=int, default=TOP_K)
@@ -240,6 +242,7 @@ def main(argv=None):
     print("=" * 72)
 
     client = None
+    ns_by_qid: dict[str, str] = {}  # question_id -> namespace actually ingested into
     if not args.no_hydra:
         client = (HydraDBClient(api_key=config.require("HYDRADB_API_KEY"))
                   .use_tenant(config.DEFAULT_TENANT))
@@ -255,17 +258,36 @@ def main(argv=None):
         ingested = 0
         for q, units in zip(sample, all_units):
             qid = q["question_id"]
+            # Guard against cross-run namespace pollution (same fix as
+            # longmemeval.run_hydra): ingest only into a verified-empty namespace.
+            ns = fresh_namespace(client, qid)
+            ns_by_qid[qid] = ns
+            if ns != qid:
+                print(f"    namespace {qid} dirty — using fresh {ns}")
             for _sid, txt in units:
                 try:
-                    client.add_memory(txt, infer=True, sub_tenant_id=qid)
+                    client.add_memory(txt, infer=True, sub_tenant_id=ns)
                 except Exception as e:
                     print(f"    warn: ingest error on {qid}: {repr(e)[:60]}")
                 ingested += 1
                 if ingested % 50 == 0:
                     print(f"    ingested {ingested}/{total_sessions}…")
-        print(f"  [Phase 1] done. waiting {args.hydra_wait}s for graph wiring…")
-        time.sleep(args.hydra_wait)
-        print("  [Phase 1] graph wiring settled.")
+        # Active wait: poll each namespace until its row count reaches the
+        # ingested unit count and stops changing (blind sleep raced HydraDB's
+        # async indexing and under-measured it). --hydra-wait is the per-
+        # namespace timeout, not a fixed sleep.
+        from .hydra_wait import wait_for_indexing
+        print(f"  [Phase 1] done. polling {len(sample)} namespaces for indexing "
+              f"(timeout {args.hydra_wait}s each)…")
+        for q, units in zip(sample, all_units):
+            qid = q["question_id"]
+            ns = ns_by_qid.get(qid, qid)
+            seen = wait_for_indexing(client, sub_tenant_id=ns,
+                                     min_count=len(units), timeout=args.hydra_wait,
+                                     poll=2)  # batch ingest ran first; most are settled
+            if seen < len(units):
+                print(f"    warn: {ns} indexing timeout — {seen}/{len(units)} visible")
+        print("  [Phase 1] indexing settled.")
 
     # ── Phase 2: retrieve + score ───────────────────────────────────────
     print(f"\n  [Phase 2] retrieval + scoring…")
@@ -289,10 +311,10 @@ def main(argv=None):
         b_ans = h_ans = ""
 
         if not args.no_bm25:
-            b_texts, b_sids = run_bm25(q, units)
+            b_texts, b_sids = run_bm25(q, units, k=args.k)
             b_rec = is_evidence(b_sids, gold_sids)
             if run_judge:
-                b_ans = generate_answer(b_texts, q["question"], args.judge_model)
+                b_ans = generate_answer(b_texts, q["question"], args.judge_model, k=args.k)
                 b_qa = judge_answer(q["question"], gold_ans, b_ans, qtype, args.judge_model)
 
         h_err = ""
@@ -302,13 +324,13 @@ def main(argv=None):
                 chunks = client.recall_preferences(
                     q["question"], max_results=args.k, graph_context=True,
                     mode=config.HYDRA_RECALL_MODE, alpha=config.HYDRA_RECALL_ALPHA,
-                    sub_tenant_id=qid,
+                    sub_tenant_id=ns_by_qid.get(qid, qid),
                 )
                 h_texts = [c.text for c in chunks]
                 h_sids = [_best_session(c.text, units) for c in chunks]
                 h_rec = is_evidence(h_sids, gold_sids)
                 if run_judge:
-                    h_ans = generate_answer(h_texts, q["question"], args.judge_model)
+                    h_ans = generate_answer(h_texts, q["question"], args.judge_model, k=args.k)
                     h_qa = judge_answer(q["question"], gold_ans, h_ans, qtype, args.judge_model)
             except Exception as e:
                 h_err = repr(e)[:80]

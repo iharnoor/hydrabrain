@@ -47,7 +47,7 @@ def write_report(data: dict, path: Path = REPORT_PATH) -> Path:
         doc += f"""
  <div class="card"><h3>QA accuracy — HydraDB</h3><div class="big hydra">{hq:.1f}%</div></div>
  <div class="card"><h3>QA accuracy — gbrain-stack</h3><div class="big base">{bq:.1f}%</div></div>
- <div class="card"><h3>HydraDB advantage</h3><div class="big" style="color:#16a34a">{hq-bq:+.1f} pts</div></div>
+ <div class="card"><h3>HydraDB delta</h3><div class="big" style="color:{'#16a34a' if hq >= bq else '#b45309'}">{hq-bq:+.1f} pts</div></div>
  <div class="card"><h3>evidence recall@{s['top_k']}</h3><div class="big"><span class="hydra">{s['hydra_evidence_recall']*100:.0f}%</span> / <span class="base">{s['base_evidence_recall']*100:.0f}%</span></div></div>
 """
     else:
