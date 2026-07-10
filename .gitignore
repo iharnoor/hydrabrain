@@ -47,7 +47,8 @@ reports/network-intelligence/
 __pycache__/
 *.pyc
 bench/results.json
-bench/longmemeval_results.json
+# bench/longmemeval_results.json is COMMITTED as the raw receipt of the run
+bench/longmemeval_checkpoint.jsonl
 bench/data/
 
 # head-to-head benchmark gbrain brain (local, regenerable)
@@ -62,3 +63,9 @@ bench/relational_results.json
 
 build/
 dist/
+
+# bench: local gbrain brains for relational_v2 (PGLite DBs, regenerable)
+bench/.gbrain-relv2/
+bench/.gbrain-relv2-seeded/
+# nested parallel-session working copy (its own git repo — never track)
+hydrabrain-fork different claude session/

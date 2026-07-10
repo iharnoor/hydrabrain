@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>I caught my own benchmark lying about HydraDB</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%AC%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#0a1414;
+    --panel:#0f1d1d;
+    --panel-2:#0c1818;
+    --hair:#1d3433;
+    --body:#b9cac7;
+    --dim:#7f9591;
+    --bright:#e7f1ef;
+    --aqua:#2dd4bf;
+    --sand:#d9a05b;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--body);
+    font-family:var(--sans);
+    font-size:18px;
+    line-height:1.72;
+    overflow-x:hidden;
+    text-rendering:optimizeLegibility;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px}
+  .prose{max-width:65ch}
+
+  /* ---- masthead ---- */
+  header.top{
+    border-bottom:1px solid var(--hair);
+    background:linear-gradient(180deg,rgba(45,212,191,0.04),transparent);
+  }
+  .kicker{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    color:var(--aqua);
+    margin:0 0 18px;
+  }
+  h1{
+    font-family:var(--mono);
+    font-weight:600;
+    font-size:clamp(28px,6vw,46px);
+    line-height:1.12;
+    letter-spacing:-0.01em;
+    color:var(--bright);
+    margin:0 0 22px;
+  }
+  .dek{
+    font-size:clamp(18px,2.6vw,21px);
+    color:var(--body);
+    margin:0 0 28px;
+    max-width:60ch;
+  }
+  .dateline{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--dim);
+    border-top:1px solid var(--hair);
+    padding-top:16px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 18px;
+  }
+  .dateline b{color:var(--body);font-weight:500}
+  header.top .wrap{padding-top:56px;padding-bottom:40px}
+
+  /* ---- prose ---- */
+  main{padding:48px 0 80px}
+  main .wrap > *{margin-left:auto;margin-right:auto}
+  p{margin:0 0 22px}
+  .lede{font-size:21px;line-height:1.6;color:var(--bright)}
+  main p,main ul,main ol,main h2,main h3,main .note{max-width:65ch;margin-left:auto;margin-right:auto}
+  h2{
+    font-family:var(--mono);
+    font-weight:600;
+    font-size:clamp(20px,3.4vw,27px);
+    color:var(--bright);
+    letter-spacing:-0.01em;
+    margin:64px auto 8px;
+    padding-top:8px;
+  }
+  h2 .num{color:var(--aqua);font-size:.7em;margin-right:.6em;vertical-align:1px}
+  h3{
+    font-family:var(--mono);
+    font-weight:600;
+    font-size:17px;
+    color:var(--sand);
+    margin:36px auto 8px;
+    letter-spacing:.01em;
+  }
+  a{color:var(--aqua);text-decoration:none;border-bottom:1px solid rgba(45,212,191,.35)}
+  a:hover{border-bottom-color:var(--aqua)}
+  strong{color:var(--bright);font-weight:600}
+  em{color:var(--body)}
+  code{
+    font-family:var(--mono);
+    font-size:.86em;
+    background:var(--panel);
+    border:1px solid var(--hair);
+    border-radius:5px;
+    padding:1px 6px;
+    color:var(--bright);
+  }
+  ul,ol{padding-left:1.3em;margin:0 auto 22px}
+  li{margin:0 0 10px}
+  li::marker{color:var(--aqua)}
+
+  /* ---- pull quote ---- */
+  .pull{
+    max-width:none;
+    border-left:3px solid var(--aqua);
+    margin:54px auto;
+    padding:6px 4px 6px 28px;
+  }
+  .pull blockquote{
+    margin:0;
+    font-family:var(--mono);
+    font-size:clamp(21px,3.6vw,30px);
+    line-height:1.32;
+    color:var(--bright);
+    letter-spacing:-0.01em;
+  }
+  .pull .src{
+    display:block;
+    margin-top:14px;
+    font-family:var(--sans);
+    font-size:14px;
+    color:var(--dim);
+    letter-spacing:.02em;
+  }
+
+  /* ---- callout ---- */
+  .note{
+    background:var(--panel);
+    border:1px solid var(--hair);
+    border-radius:10px;
+    padding:18px 22px;
+    margin:32px auto;
+    font-size:16px;
+  }
+  .note .tag{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--sand);
+    display:block;
+    margin-bottom:8px;
+  }
+  .note p:last-child{margin-bottom:0}
+
+  /* ---- bug list ---- */
+  .bugs{list-style:none;padding:0;max-width:65ch;margin:8px auto 26px}
+  .bugs li{
+    border:1px solid var(--hair);
+    border-left:3px solid var(--sand);
+    background:var(--panel-2);
+    border-radius:8px;
+    padding:16px 20px;
+    margin:0 0 14px;
+  }
+  .bugs li b{color:var(--sand);font-family:var(--mono);font-size:14px;letter-spacing:.04em}
+
+  /* ---- tables ---- */
+  .scroller{
+    overflow-x:auto;
+    margin:28px auto;
+    max-width:760px;
+    border:1px solid var(--hair);
+    border-radius:10px;
+    -webkit-overflow-scrolling:touch;
+  }
+  table{
+    border-collapse:collapse;
+    width:100%;
+    font-family:var(--mono);
+    font-size:14px;
+    font-variant-numeric:tabular-nums;
+    min-width:520px;
+  }
+  caption{
+    caption-side:top;
+    text-align:left;
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.04em;
+    color:var(--dim);
+    padding:14px 18px 0;
+  }
+  th,td{padding:11px 16px;text-align:left;border-bottom:1px solid var(--hair)}
+  thead th{
+    color:var(--bright);
+    font-weight:600;
+    font-size:12px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    background:var(--panel);
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.h{color:var(--aqua)}
+  td.g{color:var(--sand)}
+  .win-h{color:var(--aqua);font-weight:600}
+  .win-g{color:var(--sand);font-weight:600}
+  tbody tr:nth-child(even){background:rgba(255,255,255,0.012)}
+  .metric{color:var(--body)}
+
+  /* ---- code block ---- */
+  pre{
+    margin:24px auto;
+    max-width:760px;
+    overflow-x:auto;
+    background:var(--panel);
+    border:1px solid var(--hair);
+    border-radius:10px;
+    padding:18px 20px;
+    font-family:var(--mono);
+    font-size:13.5px;
+    line-height:1.6;
+    color:var(--bright);
+  }
+  pre code{background:none;border:none;padding:0;font-size:inherit}
+  .cmt{color:var(--dim)}
+  .acc{color:var(--aqua)}
+
+  /* ---- legend chips ---- */
+  .legend{
+    display:flex;gap:20px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:13px;
+    margin:0 auto 4px;max-width:65ch;
+    color:var(--dim);
+  }
+  .chip{display:inline-flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:2px;display:inline-block}
+  .dot.h{background:var(--aqua)}
+  .dot.g{background:var(--sand)}
+
+  hr{border:none;border-top:1px solid var(--hair);max-width:65ch;margin:56px auto}
+
+  footer{
+    border-top:1px solid var(--hair);
+    padding:40px 0 64px;
+    color:var(--dim);
+    font-size:14px;
+  }
+  footer .wrap{max-width:65ch}
+  footer p{max-width:none}
+  footer a{color:var(--body)}
+
+  ::selection{background:rgba(45,212,191,.28);color:#fff}
+
+  @media (max-width:520px){
+    body{font-size:17px}
+    .wrap{padding:0 18px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <p class="kicker">Lab notebook · agent memory</p>
+    <h1>I caught my own benchmark lying about HydraDB</h1>
+    <p class="dek">I forked an open-source agent-memory engine, rebuilt its retrieval layer on HydraDB, and ran a head-to-head. The first numbers were a blowout. They were also a lie - and the lie was mine.</p>
+    <div class="dateline">
+      <span>By <b>Harnoor</b></span>
+      <span>2026-06-23</span>
+      <span>HydraDB engineering</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <p class="lede">I rebuilt an open-source agent-memory engine's retrieval layer on <a href="https://hydradb.com">HydraDB</a>, benchmarked it against the real thing (<a href="https://github.com/garrytan/gbrain">gbrain</a>), and watched HydraDB win everything. Then I found out why: I had been benchmarking gbrain with its main feature switched off.</p>
+
+    <p>So I rebuilt the harness to be fair, handed gbrain every advantage, and ran it again. HydraDB still wins where it counts. Here is the whole thing, losses included.</p>
+
+    <h2><span class="num">01</span>The blowout was a lie</h2>
+
+    <p>gbrain's headline feature is a typed-edge graph: it pulls relationships out of prose and lets you traverse them. My harness had it broken three ways, each one quietly against gbrain:</p>
+
+    <ul class="bugs">
+      <li><b>BUG 1 - no graph.</b> The default schema pack shipped no edge-inference rules, so gbrain built zero edges. I was scoring a graph engine with no graph.</li>
+      <li><b>BUG 2 - wrong edges.</b> Once extraction ran, "person-00 works at company-00" came back typed <code>founded</code>. Wrong type, wrong answers.</li>
+      <li><b>BUG 3 - graph off at query time.</b> gbrain's traversal only fires with <code>relational:true</code>, which I had not set. The graph sat unused.</li>
+    </ul>
+
+    <p>Reasonable defaults, my job to get right. A benchmark that measures a competitor with its best feature dark is not a benchmark. It is a press release with a chart.</p>
+
+    <h2><span class="num">02</span>Rebuilt fair</h2>
+
+    <p>Four fixes, so the test could not be rigged again:</p>
+
+    <ul>
+      <li><strong>Same notes into both.</strong> Both engines read the exact same text. Neither gets a head start.</li>
+      <li><strong>A safety check.</strong> Before any score prints, the test confirms gbrain actually built its relationship links and labeled them correctly. If it did not, the run stops. No more scoring gbrain with an empty graph.</li>
+      <li><strong>Graph search switched on.</strong> gbrain's graph lookup is off by default; it normally just does plain text search. I turned it on so gbrain actually uses its graph to answer.</li>
+      <li><strong>Then the big one.</strong> Instead of letting gbrain build the graph from text, where it makes mistakes, I handed it a perfect graph by hand, using gbrain's own official method. That is gbrain at its absolute best, so nobody can say I won by breaking it.</li>
+    </ul>
+
+    <h2><span class="num">03</span>The result</h2>
+
+    <div class="legend">
+      <span class="chip"><span class="dot h"></span>HydraDB</span>
+      <span class="chip"><span class="dot g"></span>gbrain</span>
+    </div>
+
+    <div class="scroller">
+      <table>
+        <caption>Relational recall@5 - gbrain handed a perfect graph</caption>
+        <thead><tr><th>Query</th><th>HydraDB</th><th>gbrain (perfect graph)</th></tr></thead>
+        <tbody>
+          <tr><td class="metric">Overall</td><td class="win-h">88.4%</td><td class="g">77.4%</td></tr>
+          <tr><td class="metric">1-hop</td><td class="h">92.3%</td><td class="win-g">100.0%</td></tr>
+          <tr><td class="metric">2-hop (multi-hop)</td><td class="win-h">86.0%</td><td class="g">63.8%</td></tr>
+          <tr><td class="metric">MRR</td><td class="win-h">0.894</td><td class="g">0.826</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>gbrain wins clean 1-hop lookups, 100 to 92 - but only with that perfect, hand-built graph.</strong> One edge away, its traversal is flawless. Read that carefully though: 92% is HydraDB's <em>strongest</em> tier, not a weak spot, and the moment you make both engines extract edges from prose the way they would in production, HydraDB wins single-hop too (91% to 84%). gbrain's single-hop edge lives entirely inside the artificial control.</p>
+
+    <p>And the questions worth asking are rarely one edge away. On <strong>multi-hop</strong> ("which fund backed the company person-00 works at") HydraDB holds 86.0% to gbrain's 63.8%, even with gbrain's graph hand-built to perfection. That is the gap that matters, and it is HydraDB's under every condition.</p>
+
+    <p>And that is gbrain at its best. Make both engines extract from raw prose, the way they would in production, and gbrain falls to ~50% recall (its regex extractor recovers only ~44% of the relationships) while HydraDB holds ~88%. Feed both the same documents and HydraDB builds the better graph.</p>
+
+    <div class="pull">
+      <blockquote>A benchmark you can't rerun is marketing.</blockquote>
+    </div>
+
+    <h2><span class="num">04</span>The part that isn't close</h2>
+
+    <p>Retrieval quality is an argument. The architecture is not.</p>
+
+    <div class="scroller">
+      <table>
+        <caption>Retrieval implementation surface - measured</caption>
+        <thead><tr><th>Dimension</th><th>HydraDB</th><th>gbrain</th></tr></thead>
+        <tbody>
+          <tr><td class="metric">Lines of retrieval code</td><td class="win-h">327</td><td class="g">9,345</td></tr>
+          <tr><td class="metric">Files</td><td class="win-h">1</td><td class="g">32</td></tr>
+          <tr><td class="metric">Query path</td><td class="h">one <code>recall()</code></td><td class="g">6-stage pipeline</td></tr>
+          <tr><td class="metric">Services to run</td><td class="win-h">1</td><td class="g">4</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Dense vectors, BM25, fusion, a reranker, query expansion, a graph arm: six stages, ~29x the code, four services to keep alive. HydraDB folds all of it behind one <code>recall()</code>. Comparable quality, a fraction of the machinery.</p>
+
+    <h2><span class="num">05</span>At scale</h2>
+
+    <p>On <a href="https://arxiv.org/abs/2410.10813">LongMemEval-S</a> (~48 distractor sessions per question), HydraDB more than doubled the QA accuracy of a BM25 baseline, 38.1% to 16.7%, on tied evidence recall (97.6%). The one caveat I will not bury: <strong>that baseline is BM25, not gbrain.</strong> I have not run gbrain at this scale yet, so it says HydraDB turns evidence into right answers far better than lexical search, and nothing about gbrain.</p>
+
+    <h2><span class="num">06</span>What is true</h2>
+
+    <ul>
+      <li><strong>Multi-hop:</strong> HydraDB wins, even against a perfect gbrain graph.</li>
+      <li><strong>Extraction from prose:</strong> HydraDB wins, by a lot.</li>
+      <li><strong>Simplicity:</strong> one call, one service, ~29x less code.</li>
+      <li><strong>1-hop:</strong> gbrain wins <em>only</em> when handed a perfect, hand-built graph (100 to 92). HydraDB is strong at single-hop regardless - it is HydraDB's best tier - and wins single-hop (91 to 84) once both engines extract from prose.</li>
+    </ul>
+
+    <p>Caveats, once: small synthetic corpus (50 entities, 149 queries), and HydraDB is hosted, so it is non-deterministic and drifts a few points per run. Signal, not scripture.</p>
+
+    <h2><span class="num">07</span>Don't trust this benchmark either</h2>
+
+    <p>If my own benchmark could be rigged in my favor without me noticing, so can anyone's. The author picks the corpus, the opponent, the metric, the config, and when to stop checking. Every one is a place to hide a win, and the author is the last to see it. The checklist that would have caught me:</p>
+
+    <ol>
+      <li><strong>Is the opponent real, or a strawman with its best feature removed?</strong></li>
+      <li><strong>Is that feature actually on?</strong> Mine was not.</li>
+      <li><strong>Did the inputs land?</strong> Count them, and abort if not.</li>
+      <li><strong>Did you give the opponent its best config?</strong> Hand it a perfect setup and see if you still win.</li>
+      <li><strong>Is the metric named honestly?</strong> A mislabeled metric is a lie with a chart.</li>
+      <li><strong>Deterministic? If not, say so and quote ranges.</strong></li>
+      <li><strong>Can a stranger rerun it in one command?</strong> If not, it is a screenshot, not evidence.</li>
+      <li><strong>Does it survive you arguing the other side?</strong></li>
+    </ol>
+
+    <hr>
+
+    <h3>Reproduce it</h3>
+    <p>One command. It builds the graph, turns on traversal, and refuses to print a number if gbrain's graph is not real:</p>
+
+<pre><code><span class="cmt"># fair relational benchmark, gbrain handed a perfect graph</span>
+python3 -m bench.relational_v2 <span class="acc">--seed-edges --report</span></code></pre>
+
+    <p>Do not trust it. Run it. Try to break it.</p>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>HydraDB is a hosted, graph-native agent-memory store - <a href="https://hydradb.com">hydradb.com</a>. gbrain is open-source agent memory by garrytan - <a href="https://github.com/garrytan/gbrain">github.com/garrytan/gbrain</a>. All entities in the benchmark corpus are synthetic placeholders. This is a fair technical comparison, not a dunk: gbrain is a serious, well-built system, and the integrity of the result depends on being generous to it.</p>
+    <p style="margin-top:18px;color:var(--dim)">Harnoor · 2026-06-23</p>
+  </div>
+</footer>
+
+</body>
+</html>

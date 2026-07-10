@@ -66,7 +66,7 @@ hermes mcp add hydrabrain --command python3 --args -m hydrabrain.cli serve
 # "hydrabrain": {"command": "python3", "args": ["-m", "hydrabrain.cli", "serve"]}
 ```
 
-Confirm the 5 tools are listed: `capture`, `search`, `think`, `graph`, `status`.
+Confirm all 8 tools are listed: `capture`, `read_url`, `search`, `think`, `briefing`, `enrich`, `graph`, `status`.
 
 ### A5: First ingestion
 

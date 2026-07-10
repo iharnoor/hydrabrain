@@ -1,5 +1,39 @@
 # TODOS
 
+## hydrabrain bench harness follow-ups (filed 2026-07-10, LongMemEval fairness ship)
+
+Deferred from the /ship pre-landing + adversarial review of the LongMemEval harness
+rebuild. All are in files NOT touched by that ship (pre-existing harnesses) or are
+schema-affecting improvements deferred to avoid mismatching the committed receipts.
+
+- [ ] **P1 — relational_v2/hardcases/temporal: check `_gb()` returncodes before writing ready markers.**
+  All three write their reuse marker even if init/put/extract/embed subprocesses failed
+  (bun missing, bad key, quota) — a broken brain gets cached and gbrain is silently
+  under-scored in a published head-to-head. Check `r.returncode` on every step; write the
+  marker only after all succeed; add a query sanity probe. (hardcases.py:149, temporal.py:151,
+  relational_v2.py:299)
+- [ ] **P1 — temporal.py claims an integrity gate it doesn't have.** Docstring says
+  "extract links --ner + integrity gate" but no edge-count gate exists — gbrain can be
+  scored against an empty graph, repeating the retracted graph-OFF overclaim. Port the
+  gate from relational_v2. Also: `score()` rewards empty results with stale_rate 0.0.
+- [ ] **P2 — setup_hydra partial-reuse guard (relational_v2/hardcases/temporal).** `count()>0`
+  is treated as "corpus present"; a run killed mid-ingest leaves a half corpus that every
+  future run reuses. Require `count >= expected_n` or a completion marker; replace the blind
+  `time.sleep(wait)` with `hydra_wait.wait_for_indexing`.
+- [ ] **P2 — record per-row LLM answer/judge errors instead of scoring them False.**
+  lme_scale.judge_answer swallows exceptions → False; generate_answer returns "[error: ...]"
+  strings that get judged. The longmemeval summary now surfaces an aggregate `answer_errors`
+  count, but rows should carry a judge_error field and errored rows should leave the QA
+  denominator. Schema change — do before the next full run, not against committed receipts.
+- [ ] **P2 — relational_v2: catch per-query `TimeoutExpired`** (no checkpoint there; one hung
+  gbrain query at 148/149 discards the whole run) **and normalize both sides' entity decoding**
+  (hydra maps first-substring in ALL_ENTITIES order, gbrain maps by slug — route both through
+  one overlap mapper like `_best_session`).
+- [ ] **P3 — bench DRY pass.** `_gb`/`_genv` copied ×3, `_envkey`/`_has_env_key` ×3, metrics
+  ×2, `_best_session` ×2, tokenizer ×2 → shared bench helpers module. Also: relational_v2's
+  `--report` flag is parsed but unimplemented; lme_scale docstring bakes in one run's
+  narrative; judge_answer's unused `qtype` param.
+
 ## gbrain#2200 federated-read follow-ups (filed v0.42.46.0)
 
 - [ ] **P1 — Close the federated-read scope on the remaining same-class by-slug read ops.**

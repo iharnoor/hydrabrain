@@ -25,14 +25,16 @@ The Python `hydrabrain/` package is the HydraDB-backed reimplementation of gbrai
 - **`synth.py`** — produces cited answers. All facts come from HydraDB retrieval; Gemini is only the writer/grounding layer, never a store. Degrades to returning the top memory when no Gemini key (free mode).
 - **`llm.py`** — the one place a Gemini client is created, with a **hard 90s per-request timeout** (`HttpOptions`). Prevents the failure where a hung Gemini socket wedged a whole benchmark run for ~10h. Every Gemini call in `hydrabrain/` and `bench/` routes through `llm.client()` (cached). Tunable via `HYDRABRAIN_LLM_TIMEOUT_MS`.
 - **`mcp_server.py`** — MCP server exposing 8 tools: `capture` / `read_url` / `search` / `think` / `briefing` / `enrich` / `graph` / `status`. Honors `--tenant`/`--source`. Backed entirely by HydraDB.
-- **`cli.py`** — `hydrabrain` CLI, 16 commands (`init` / `status` / `capture` / `ingest` / `sync` / `read` / `search` / `think` / `chat` / `web` / `briefing` / `enrich` / `graph` / `export` / `serve` / `bench`), with global `--tenant` (brain) and `--source` (namespace) flags. Backed by HydraDB via `BrainEngine`.
+- **`cli.py`** — `hydrabrain` CLI, 19 commands (`init` / `status` / `doctor` / `capture` / `ingest` / `sync` / `read` / `search` / `think` / `chat` / `web` / `briefing` / `enrich` / `graph` / `export` / `cron` / `jobs` / `serve` / `bench`), with global `--tenant` (brain) and `--source` (namespace) flags. Backed by HydraDB via `BrainEngine`.
 - **`scripts/install.sh`** + **`skills/setup-hydrabrain/SKILL.md`** — one-line setup: `curl -fsSL …/scripts/install.sh | bash` clones (if needed) → installs deps → runs `hydrabrain init` (Free mode = HydraDB key only) → verifies → registers the MCP server with Claude. The skill is the agent-facing wrapper of the same flow.
 - **`config.py`** — loads keys from `./.env` → `~/.hydrabrain/.env` (onboarding target) → legacy path; `require()` points missing keys at `hydrabrain init`. Exposes recall tuning via `HYDRA_RECALL_MODE` / `HYDRA_RECALL_ALPHA`, brain/source defaults via `HYDRABRAIN_TENANT` / `HYDRABRAIN_SOURCE`, and `write_keys` / `needs_onboarding` / `have_gemini` for setup. Gemini keys are used only for embedding/chat, not for storage.
 
 Benchmark entrypoints under `bench/` compare HydraDB against the preserved gbrain stack as a baseline:
 
-- **`bench/run_bench.py`** — HydraDB hybrid recall (`recall_preferences`, `mode=thinking`, `graph_context=True`) vs the gbrain-stack baseline.
-- **`bench/longmemeval.py`** — LongMemEval: HydraDB vs the gbrain-stack baseline.
+- **`bench/relational_v2.py`** — fair relational head-to-head vs the **real gbrain binary** (graph ON, edges built via `extract links --ner`).
+- **`bench/lme_scale.py`** — LongMemEval-S at scale: HydraDB vs a BM25 baseline.
+- **`bench/longmemeval.py`** — LongMemEval oracle: HydraDB vs the gbrain-stack baseline.
+- **`bench/run_bench.py`** — legacy recall@5/MRR harness: HydraDB hybrid recall (`recall_preferences`, `mode=thinking`, `graph_context=True`) vs the gbrain-stack baseline.
 
 ---
 
@@ -61,4 +63,4 @@ HydraDB is the backend for the `hydrabrain/` reimplementation and **all new work
 ## See also
 
 - [`README.md`](README.md) — overview and quickstart.
-- [`BENCHMARKS.md`](BENCHMARKS.md) — results, including HydraDB recall@5 of 96.5% vs the full-stack baseline's 92.1%.
+- [`BENCHMARKS.md`](BENCHMARKS.md) — fair head-to-head vs the real gbrain binary (graph ON): relational R@5 88.4% vs 77.4%, multi-hop 86.0% vs 63.8%.

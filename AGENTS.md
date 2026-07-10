@@ -32,7 +32,7 @@ claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
 hermes mcp add hydrabrain --command python3 --args -m hydrabrain.cli serve
 ```
 
-Confirm the tools are available: `capture`, `search`, `think`, `graph`, `status`.
+Confirm all 8 tools are available: `capture`, `read_url`, `search`, `think`, `briefing`, `enrich`, `graph`, `status`.
 
 ### First brain ingestion
 
@@ -44,6 +44,16 @@ hydrabrain search "what do I work on?"                         # verify recall
 
 See [`INSTALL_FOR_AGENTS.md`](./INSTALL_FOR_AGENTS.md) for the full HydraBrain setup flow
 (API keys, tenant config, cron, verification, MCP registration).
+
+### Run the Python tests
+
+```bash
+pytest    # offline — runs tests/ (pyproject testpaths); no API keys needed
+```
+
+`tests/test_bench_harness.py` covers the bench harness logic (scoring, entity
+mapping, wait/verify helpers in `bench/hydra_wait.py`). The `test/` directory
+is the upstream gbrain TypeScript suite (Bun) — `pytest` does not touch it.
 
 ---
 

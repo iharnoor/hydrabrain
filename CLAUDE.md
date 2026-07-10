@@ -4,7 +4,7 @@
 
 > **Fork notice:** this repo carries TWO implementations.
 > - **`hydrabrain/`** — Python reimplementation backed by [HydraDB](https://hydradb.com).
->   Zero local infra, pip-installable, 5 MCP tools. **Primary implementation for this fork.**
+>   Zero local infra, pip-installable, 8 MCP tools. **Primary implementation for this fork.**
 >   See `hydrabrain.plugin.json`, `hydrabrain.yml`, `pyproject.toml`.
 > - **`src/` / `skills/`** — upstream gbrain TypeScript source (preserved unchanged).
 >   Description below applies to this TS implementation.

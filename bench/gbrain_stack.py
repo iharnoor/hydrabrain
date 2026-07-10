@@ -40,17 +40,73 @@ def _tok(text: str) -> list[str]:
     return _WORD.findall(text.lower())
 
 
+# ── chunking (parameter-faithful to real gbrain) ────────────────────
+# Real gbrain chunks every document before indexing — src/core/chunkers/
+# recursive.ts: 300-word chunks, 50-word overlap, 6000-char hard cap.
+# The baseline must do the same: indexing a whole multi-topic chat session
+# as ONE unsplit unit gives it an artificially tiny candidate pool (on the
+# LongMemEval oracle split, fewer units than top-k — it "wins" recall by
+# returning everything it has), while HydraDB searches among many chunks
+# of the same content. Chunk parity makes recall a measurement again.
+CHUNK_WORDS = 300
+CHUNK_OVERLAP_WORDS = 50
+CHUNK_MAX_CHARS = 6000
+
+
+def chunk_text(text: str) -> list[str]:
+    """Sliding word-window chunker with gbrain's parameters (300w / 50w
+    overlap / 6000-char cap). Word-boundary port of gbrain's recursive
+    chunker — same size/overlap/cap, without the 5-level delimiter
+    hierarchy (chat-transcript lines make word windows a close proxy)."""
+    words = text.split()
+    if not words:
+        return []
+    step = CHUNK_WORDS - CHUNK_OVERLAP_WORDS
+    chunks: list[str] = []
+    for start in range(0, len(words), step):
+        piece = " ".join(words[start:start + CHUNK_WORDS])
+        # Hard char cap — the sliding-window safety belt from recursive.ts.
+        while len(piece) > CHUNK_MAX_CHARS:
+            chunks.append(piece[:CHUNK_MAX_CHARS])
+            piece = piece[CHUNK_MAX_CHARS - 200:]
+        chunks.append(piece)
+        if start + CHUNK_WORDS >= len(words):
+            break
+    return chunks
+
+
+_EMBED_BATCH = 50  # texts per request — Gemini's free-tier quota counts REQUESTS
+                   # per day (1000), so batching is a ~50× quota saving vs singles
+
+
 def _embed(texts: list[str], model: str | None = None) -> list[list[float]]:
+    import time
+
     from hydrabrain import llm
 
     client = llm.client()
     model = model or config.GEMINI_EMBED_MODEL
     vecs: list[list[float]] = []
-    # Embed one-by-one for maximal SDK-version compatibility.
-    for t in texts:
-        resp = client.models.embed_content(model=model, contents=t)
-        emb = resp.embeddings[0]
-        vecs.append(list(emb.values))
+    # Batch-embed with exponential backoff — chunking multiplies embed volume,
+    # and both transient 503s and per-day request quotas must not kill (or
+    # needlessly drain quota on) a multi-hour benchmark run.
+    for i in range(0, len(texts), _EMBED_BATCH):
+        batch = texts[i:i + _EMBED_BATCH]
+        for attempt in range(9):
+            try:
+                resp = client.models.embed_content(model=model, contents=batch)
+                vecs.extend(list(e.values) for e in resp.embeddings)
+                break
+            except Exception as e:
+                # Only backoff-retry transient failures (rate limits, overload,
+                # network). Auth/validation errors would otherwise burn ~5min of
+                # sleeps before surfacing the real misconfiguration.
+                transient = any(sig in repr(e) for sig in (
+                    "429", "503", "504", "UNAVAILABLE", "RESOURCE_EXHAUSTED",
+                    "DEADLINE", "Timeout", "timeout", "Connection", "reset"))
+                if not transient or attempt == 8:
+                    raise
+                time.sleep(min(2 ** attempt, 60))  # 1..60s, ~5min total
     return vecs
 
 
@@ -118,7 +174,11 @@ class GBrainStack:
             self.name = "gbrain-stack (pgvector+BM25+RRF+rerank, no graph)"
 
     def ingest(self, pages: list[str]) -> None:
-        self.docs = list(pages)
+        # Chunk each page the way real gbrain does (300w/50w/6000c) before
+        # indexing — for both the dense and BM25 arms. Pages shorter than one
+        # chunk pass through unchanged, so small-corpus benchmarks are
+        # unaffected; long documents get a realistic candidate pool.
+        self.docs = [c for p in pages for c in chunk_text(p)]
         self._vecs = _embed(self.docs)
         self._bm25 = BM25Okapi([_tok(d) for d in self.docs])
 

@@ -11,13 +11,72 @@ For the link-only index, see `llms.txt`. Source of truth: https://github.com/gar
 
 Source: https://raw.githubusercontent.com/garrytan/gbrain/master/AGENTS.md
 
-# Agents working on GBrain
+> **Fork note — context memory = [HydraDB](https://hydradb.com).** This repository is a fork of gbrain. The upstream gbrain source uses pgvector/PGLite as its memory store; for work in **this** fork the context-memory layer is **HydraDB** — see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md) and the Python `hydrabrain/` package. Do not assume pgvector/PGLite for new work here.
 
-This is your install + operating protocol. Claude Code reads `./CLAUDE.md` automatically.
-Everyone else (Codex, Cursor, OpenClaw, Aider, Continue, or an LLM fetching via URL):
-start here.
+# Agents working on HydraBrain / GBrain
 
-## Install (5 min)
+> **Two implementations live in this repo:**
+> - **`hydrabrain/`** — Python reimplementation backed by [HydraDB](https://hydradb.com).
+>   Zero local infra; one `pip install`, one API key. **This is the primary implementation.**
+> - **`src/` / `skills/`** — Original upstream gbrain TypeScript source (Bun + PGLite/Postgres).
+>   Preserved for benchmarking and lineage. See [`README.upstream.md`](./README.upstream.md).
+>
+> Claude Code reads `./CLAUDE.md` automatically. Everyone else starts here.
+
+## Quick-install: HydraBrain (recommended)
+
+```bash
+pip install -e ".[bench]"          # install hydrabrain + bench extras
+cp .env.hydrabrain.example .env    # fill in HYDRADB_API_KEY, HYDRABRAIN_TENANT, GEMINI_API_KEY
+hydrabrain status                  # verify — should print tenant + memory count
+```
+
+**Get credentials at <https://app.hydradb.com>.**  
+No local Postgres, no WASM, no Bun required. Works on any Python 3.11+ machine.
+
+### Wire the MCP server
+
+Add to Claude Code / Hermes / any MCP host:
+```bash
+# Claude Code
+claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
+
+# Hermes
+hermes mcp add hydrabrain --command python3 --args -m hydrabrain.cli serve
+```
+
+Confirm all 8 tools are available: `capture`, `read_url`, `search`, `think`, `briefing`, `enrich`, `graph`, `status`.
+
+### First brain ingestion
+
+```bash
+hydrabrain capture "My name is <name>. I work on <topic>."    # seed identity
+hydrabrain ingest ~/brain/*.md                                 # import markdown files
+hydrabrain search "what do I work on?"                         # verify recall
+```
+
+See [`INSTALL_FOR_AGENTS.md`](./INSTALL_FOR_AGENTS.md) for the full HydraBrain setup flow
+(API keys, tenant config, cron, verification, MCP registration).
+
+### Run the Python tests
+
+```bash
+pytest    # offline — runs tests/ (pyproject testpaths); no API keys needed
+```
+
+`tests/test_bench_harness.py` covers the bench harness logic (scoring, entity
+mapping, wait/verify helpers in `bench/hydra_wait.py`). The `test/` directory
+is the upstream gbrain TypeScript suite (Bun) — `pytest` does not touch it.
+
+---
+
+## Upstream GBrain (TypeScript / Bun)
+
+The sections below describe the upstream gbrain TS implementation.
+Use this if you need PGLite embedded Postgres, offline operation, or
+want to reproduce the benchmarks against gbrain's native stack.
+
+### Install (5 min)
 
 1. Install gbrain via Bun (the canonical path):
    ```bash
@@ -44,6 +103,13 @@ start here.
 
 ## Read this order
 
+### HydraBrain (Python / HydraDB)
+1. `./AGENTS.md` (this file) — install + operating protocol.
+2. [`./hydrabrain/`](./hydrabrain/) — the implementation: `engine.py`, `client.py`, `cli.py`, `mcp_server.py`.
+3. [`./INSTALL_FOR_AGENTS.md`](./INSTALL_FOR_AGENTS.md) — full setup (HydraBrain section first).
+4. [`./BENCHMARKS.md`](./BENCHMARKS.md) — benchmark methodology and results.
+
+### GBrain upstream (TypeScript / Bun)
 1. `./AGENTS.md` (this file) — install + operating protocol.
 2. [`./CLAUDE.md`](./CLAUDE.md) — orientation + resolver: architecture, cross-cutting
    invariants, the reference map, inline ship rules. It routes to on-demand detail docs:
@@ -147,7 +213,19 @@ publishing: `LLMS_REPO_BASE=https://raw.githubusercontent.com/your-org/your-fork
 
 Source: https://raw.githubusercontent.com/garrytan/gbrain/master/CLAUDE.md
 
+> **Fork note — context memory = [HydraDB](https://hydradb.com).** This repository is a fork of gbrain. The upstream gbrain source uses pgvector/PGLite as its memory store; for work in **this** fork the context-memory layer is **HydraDB** — see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md) and the Python `hydrabrain/` package. Do not assume pgvector/PGLite for new work here.
+
 # CLAUDE.md
+
+> **Fork notice:** this repo carries TWO implementations.
+> - **`hydrabrain/`** — Python reimplementation backed by [HydraDB](https://hydradb.com).
+>   Zero local infra, pip-installable, 8 MCP tools. **Primary implementation for this fork.**
+>   See `hydrabrain.plugin.json`, `hydrabrain.yml`, `pyproject.toml`.
+> - **`src/` / `skills/`** — upstream gbrain TypeScript source (preserved unchanged).
+>   Description below applies to this TS implementation.
+>
+> **If you are working on the hydrabrain Python package**, you do NOT need Bun, PGLite,
+> or Postgres. Start with `hydrabrain/` and the quickstart in `AGENTS.md`.
 
 GBrain is a personal knowledge brain and GStack mod for agent platforms. Pluggable
 engines: PGLite (embedded Postgres via WASM, zero-config default) or Postgres + pgvector
@@ -931,12 +1009,107 @@ Key routing rules:
 
 Source: https://raw.githubusercontent.com/garrytan/gbrain/master/INSTALL_FOR_AGENTS.md
 
-# GBrain Installation Guide for AI Agents
+> **Fork note — context memory = [HydraDB](https://hydradb.com).** This repository is a fork of gbrain. The upstream gbrain source uses pgvector/PGLite as its memory store; for work in **this** fork the context-memory layer is **HydraDB** — see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md) and the Python `hydrabrain/` package. Do not assume pgvector/PGLite for new work here.
+
+# HydraBrain / GBrain Installation Guide for AI Agents
 
 Read this entire file, then follow the steps. Ask the user for API keys when needed.
+
+> **Two implementations in this repo.** Start with **HydraBrain** (Section A) —
+> it is the simpler, cloud-native path. The original **GBrain TypeScript** install
+> (Section B) is preserved for offline / benchmarking use.
+
+---
+
+## Section A — HydraBrain (Python / HydraDB) — Target: ~5 min
+
+### A0: Prerequisites
+
+- Python 3.11+
+- A HydraDB account — sign up at <https://app.hydradb.com> (free tier available)
+- A Gemini API key — for `hydrabrain think` synthesis (optional; search works without it)
+
+### A1: Install
+
+```bash
+# From repo root (editable install + bench extras):
+pip install -e ".[bench]"
+```
+
+Verify: `hydrabrain --help` should print available commands.
+
+### A2: Set credentials
+
+```bash
+cp .env.hydrabrain.example .env
+# Edit .env — fill in:
+#   HYDRADB_API_KEY   — from https://app.hydradb.com → API keys
+#   HYDRABRAIN_TENANT — your tenant slug (e.g. "personal" or your org name)
+#   GEMINI_API_KEY    — from https://aistudio.google.com (optional but recommended)
+```
+
+Alternatively export directly:
+```bash
+export HYDRADB_API_KEY="hdb-..."
+export HYDRABRAIN_TENANT="personal"
+export GEMINI_API_KEY="AIza..."
+```
+
+### A3: Verify
+
+```bash
+hydrabrain status
+# Expected: {"tenant": "...", "memories": 0}
+```
+
+### A4: Register the MCP server
+
+Add to your agent platform:
+
+```bash
+# Claude Code
+claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
+
+# Hermes
+hermes mcp add hydrabrain --command python3 --args -m hydrabrain.cli serve
+
+# Claude Desktop (add to claude_desktop_config.json)
+# "hydrabrain": {"command": "python3", "args": ["-m", "hydrabrain.cli", "serve"]}
+```
+
+Confirm all 8 tools are listed: `capture`, `read_url`, `search`, `think`, `briefing`, `enrich`, `graph`, `status`.
+
+### A5: First ingestion
+
+```bash
+hydrabrain capture "I am <name>. I work on <topic>."    # seed identity
+hydrabrain ingest ~/notes/*.md                           # import markdown files
+hydrabrain search "what do I work on?"                   # verify end-to-end recall
+```
+
+That's it. The MCP server is live and the brain has context.
+
+### A6: Tune recall (optional)
+
+Defaults (`mode=thinking`, `alpha=1.0`) work well for most personal brains.
+For keyword-heavy corpora lower `alpha` toward 0.5; for conversational corpora
+keep it at 1.0. Override in `.env` or in `hydrabrain.yml`.
+
+### A7: Run benchmarks (optional)
+
+```bash
+python -m bench.run_bench --help
+```
+
+See [`BENCHMARKS.md`](./BENCHMARKS.md) for methodology and results.
+
+---
+
+## Section B — GBrain (TypeScript / Bun)
+
 Target: ~30 minutes to a fully working brain.
 
-## Step 0: If you are not Claude Code
+### B0: If you are not Claude Code
 
 Read `AGENTS.md` at the repo root first. It's the non-Claude-agent operating
 protocol (install, read order, trust boundary, common tasks). Claude Code reads
@@ -1435,448 +1608,646 @@ These apply to ALL brain-writing skills:
 
 Source: https://raw.githubusercontent.com/garrytan/gbrain/master/README.md
 
-# GBrain
+> **🍴 This repository is a fork of [gbrain](https://github.com/garrytan/gbrain)** (MIT, by Garry Tan).
+> gbrain's original TypeScript source is preserved here unchanged - see [`README.upstream.md`](README.upstream.md), `src/`, `skills/`, etc.
+> The **`hydrabrain/`** and **`bench/`** directories add an *independent Python reimplementation on [HydraDB](https://hydradb.com)* plus head-to-head benchmarks. They share no code with gbrain's TS source - this fork exists to carry the lineage and run the comparison side-by-side. The document below describes that reimplementation.
 
-**Search gives you raw pages. GBrain gives you the answer.** It's the brain layer your AI agent has been missing — the only one that does synthesis, graph traversal, and gap analysis in one box. Run a full autonomous agent on top of it, or just wire it into Claude Code or Codex as a supercharged retrieval layer in one command; either way your coding agent stops being amnesiac about everything that isn't code.
+**Context memory:** this project runs entirely on [HydraDB](https://hydradb.com) - see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md).
 
-I'm Garry Tan, President and CEO of Y Combinator. I built GBrain to run my own AI agents. It's the production brain behind my OpenClaw and Hermes deployments: **146,646 pages, 24,585 people, 5,339 companies**, 66 cron jobs running autonomously. My agent ingests meetings, emails, tweets, voice calls, and original ideas while I sleep. It enriches every person and company it encounters. It fixes its own citations and consolidates memory overnight. I wake up smarter than when I went to bed — and so will you.
+---
 
-**And now it works as a company brain too.** Each person on the team gets their own slice of the brain, scoped by login. When you query, you only see what you're allowed to see — never another person's notes, never another team's data. We fuzz-tested this across every way you can read the brain (search, list, lookup, multi-source reads) and got zero leaks. Drop GBrain in as your team's shared institutional memory — the [company-brain](https://www.ycombinator.com/rfs#company-brain) shape YC just put on its Request for Startups. If you're building in that space, you might as well build on this. **[Tutorial: set up GBrain as your company brain →](docs/tutorials/company-brain.md)**
+<div align="center">
 
-Lots of personal-knowledge systems give you keyword matching and grep in a box. GBrain does that, and adds two things nobody else ships together:
+# 🧠 hydrabrain
 
-- **A synthesis layer that gives you the actual answer.** Synthesized, well-cited prose across people, companies, deals, and ideas. Not "here are 10 chunks that mention your query"; an actual answer with citations and an explicit note on what the brain doesn't know yet. The gap analysis is the part that changes how you use the brain.
-- **A self-wiring knowledge graph.** Every page write extracts entity refs and creates typed edges (`attended`, `works_at`, `invested_in`, `founded`, `advises`) with zero LLM calls. Ask "who works at Acme AI?" or "what did Bob invest in this quarter?" and get answers vector search alone can't reach. Benchmarked: **P@5 49.1%, R@5 97.9%** on a 240-page Opus-generated rich-prose corpus, **+31.4 points P@5** over its graph-disabled variant and over ripgrep-BM25 + vector-only RAG by a similar margin. Full BrainBench scorecards live in the sibling [gbrain-evals](https://github.com/garrytan/gbrain-evals) repo.
+### A [gbrain](https://github.com/garrytan/gbrain) clone, rebuilt on [**HydraDB**](https://hydradb.com) - and benchmarked head-to-head against the **real gbrain binary** (graph ON).
 
-The point of building a 100K-page brain is to use it as a strategic moat. To never lose context. To query what's in your own head without re-reading it. The brain layer is what makes the moat usable. The 24/7 dream cycle is what keeps it sharp. Both run on your hardware, your DB, your keys.
+[![relational R@5](https://img.shields.io/badge/relational%20R%405-~88%25_vs_~77%25-2dd4bf?style=flat-square)](#-the-benchmark-the-fair-relational-head-to-head)
+[![multi-hop R@5](https://img.shields.io/badge/multi--hop%20R%405-~86%25_vs_~64%25-2dd4bf?style=flat-square)](#-the-benchmark-the-fair-relational-head-to-head)
+[![retrieval code](https://img.shields.io/badge/retrieval%20code-29%C3%97%20less-16a34a?style=flat-square)](#architecture---what-a-maintainer-owns)
+[![fork of gbrain](https://img.shields.io/badge/fork%20of-garrytan%2Fgbrain-555?style=flat-square&logo=github)](https://github.com/garrytan/gbrain)
+[![license MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-It's easier to ship a daemon that runs 24/7 to ingest, enrich, and consolidate than it is to keep an agent in chat working hard. GBrain is that daemon, generalized. Install in 30 minutes. Your agent does the work. As my personal agent gets smarter, so does yours.
+**Fair head-to-head vs the real `gbrain` (PGLite, Gemini embeddings, typed-edge graph ON, relational arm engaged) - same 50-entity prose corpus, 149 queries, both build their own graph:**
 
-> **~30 minutes to a fully working brain.** Database ready in 2 seconds (PGLite, no server). You just answer questions about API keys.
+| What | gbrain (graph ON) | **HydraDB** |
+|---|:---:|:---:|
+| Relational **R@5**, gbrain handed a **100%-correct graph** | 77.4% | **88.4%** |
+| **Multi-hop** (2-hop) R@5 | 63.8% | **86.0%** |
+| Relational R@5, both **auto-extract from prose** | 50.0% | **88.0%** |
+| Retrieval pipeline | 6 stages · 9,345 LOC | **1 `recall()` · 327 LOC** |
 
-> **LLMs:** fetch [`llms.txt`](llms.txt) for the documentation map, or [`llms-full.txt`](llms-full.txt) for the same map with core docs inlined in one fetch. **Agents:** start with [`AGENTS.md`](AGENTS.md) (or [`CLAUDE.md`](CLAUDE.md) if you're Claude Code).
+**HydraDB wins relational retrieval overall and dominates multi-hop - even when gbrain is handed a perfect graph - in one `recall()` call vs a 6-stage pipeline.** Its real edge: robust auto-extraction from raw prose (gbrain's own NER recovered only 44% of edges) plus multi-hop traversal.
 
-## What this looks like
+<sub>Honest, on the record: HydraDB is **strong at single-hop** (~92%, its best tier) - it is not weak there. gbrain only *beats* it at single-hop **when handed a perfect, hand-built graph** (100% vs 92%); when both systems extract edges from prose the way they would in production, **HydraDB wins single-hop too** (91% vs 84%). HydraDB's condition-independent edge is **multi-hop**. Corpus is small + synthetic (50 entities, 149 queries) - not gbrain's 240-doc scale. HydraDB is a **hosted** service: numbers drift a few points between runs (non-deterministic) and it carries uptime/cost risk vs gbrain's local-first store. Full scorecard + the fairness bugs we fixed below; rerun it in one command.</sub>
 
-Say you have a meeting with Alice tomorrow. You want to walk in remembering what she works on, when you last talked, and what's still open between you. Here's what you'd type, and what you'd get back.
+</div>
 
-**You ask:**
+---
 
-> "What do I need to know before my meeting with Alice tomorrow?"
+## 📖 The story, in one paragraph
 
-**Most personal-knowledge tools give you back a list of pages.** Something like:
+We forked gbrain - the "next Postgres for memory" - and rebuilt its memory layer on
+[HydraDB](https://hydradb.com) in **~29× less retrieval code**. Then we benchmarked the rebuild
+against the **real gbrain binary**, graph on, on its home turf: relational queries over an
+entity graph. **We won - overall and on multi-hop, under both extraction conditions, even after
+handing gbrain a hand-built perfect graph.** Then we kept auditing our own harness and found
+bugs on *both* sides of the ledger: first ones inflating **our** numbers (gbrain's graph was
+never being built - we fixed that, retired the inflated claim, and re-won the fair fight), then
+ones inflating the **baseline's** (an unchunked candidate pool that made its recall 100% *by
+construction*, plus an async-indexing race and a polluted-namespace bug that silently penalized
+HydraDB). We fixed all five, re-ran everything, and published the results **including where we
+lose** (LongMemEval oracle QA: 45.6% vs 56.7%). Every claim regenerates from one command;
+raw per-question receipts are committed in [`bench/`](bench/); the full audit trail is in
+[`BENCHMARKS.md`](BENCHMARKS.md). **A benchmark you can't rerun is marketing.**
 
-```
-1. people/alice — Alice runs engineering at Acme...
-2. meetings/2026-03-15-alice-q1 — Q1 product review with Alice...
-3. meetings/2026-01-08-acme-kickoff — Kickoff meeting with Acme team...
-4. customers/acme — Acme is a series-B fintech we work with...
-5. notes/2026-04-22 — Quick chat with Alice about pricing...
-```
+### The same story, as a picture
 
-Five pages you now have to open and read yourself to actually prepare. The tool found the right material, but it didn't do the work.
-
-**GBrain gives you back the answer, with sources:**
-
-```
-Alice runs engineering at Acme (a series-B fintech). You last spoke
-on April 22 in a quick pricing chat. Three things are still open
-from that conversation:
-
-1. She owes you the security review for the new tier
-   (deadline was May 1; no update since).
-2. You committed to pricing for a 500-seat tier
-   (you sent it April 25; no response yet).
-3. She mentioned they're hiring a CISO; you said you'd intro
-   someone from your network.
-
-Heads up: nothing's been added to the brain about Alice or Acme
-since April 22, six weeks ago. She may have replied through email
-or Slack DM, channels the brain doesn't see. Worth asking her to
-catch up before assuming any of this is still current.
-```
-
-Every claim has a source page behind it. The "heads up" at the end tells you what the brain doesn't know yet, so you can ask Alice about it directly instead of being surprised. The brain just did your meeting prep.
-
-This is the difference between a search engine and a brain. Search finds the pages. The brain reads them for you and writes the answer.
-
-## Install
-
-GBrain is designed to be installed and operated by an AI agent. The fastest path is to have your agent do it for you. The CLI and MCP paths below are for people who want to wire it up themselves.
-
-### Have your agent install it (recommended)
-
-If you don't already have an AI agent platform running, start with one of these. Both are designed to read GBrain's install protocol and execute it:
-
-- **[OpenClaw](https://github.com/openclawagents/openclaw)** — deploy [AlphaClaw on Render](https://render.com/deploy?repo=https://github.com/chrysb/alphaclaw) (one click, 8GB+ RAM)
-- **[Hermes](https://github.com/openclawagents/hermes)** — deploy on [Railway](https://github.com/praveen-ks-2001/hermes-agent-template) (one click)
-
-Then paste this into your agent:
-
-```
-Retrieve and follow the instructions at:
-https://raw.githubusercontent.com/garrytan/gbrain/master/INSTALL_FOR_AGENTS.md
+```mermaid
+timeline
+    title The audit arc - how these numbers earned trust
+    section Build
+        Fork and rebuild : gbrain's memory layer reimplemented on HydraDB : 327 LOC and one recall() vs 9,345 LOC and 6 stages
+    section Too good to be true
+        First numbers are a blowout : HydraDB "wins" everything : 96.5% vs 92.1% published
+        Audit 1 - our harness cheated FOR us : gbrain's graph was never being built : claim RETIRED, integrity gate added
+    section The fair fight
+        Real gbrain, graph ON : even handed a perfect hand-built graph : HydraDB wins relational 88.4 vs 77.4 and multi-hop 86 vs 64
+    section Honest to the end
+        Audit 2 - our harness cheated AGAINST us : unchunked baseline, indexing race, polluted namespaces, n=18 noise : 5 bugs fixed, 90-question re-run
+        Publish everything : recall vindicated at 100% : QA LOSS 45.6 vs 56.7 published, receipts committed
 ```
 
-The agent installs GBrain, creates the brain, asks for your API keys, loads 43 skills, configures the dream cycle, and verifies the install end-to-end. ~30 minutes. You answer questions, it does the work.
+### The scoreboard, wins and loss side by side
 
-> **Never set up an AI agent platform before?** The [personal-brain tutorial](docs/tutorials/personal-brain.md) walks the whole path end-to-end — picking OpenClaw vs Hermes, deploying it, pointing it at INSTALL_FOR_AGENTS.md, getting the API keys, and verifying the first query. Start there if any of the above is new.
+Left bars = **HydraDB**, right bars = gbrain / baseline. The last pair is the loss - it stays on the chart.
 
-### Quick start: Claude Code or Codex
+```mermaid
+xychart-beta
+    title "Head-to-head results (higher is better)"
+    x-axis ["Relational R@5", "Multi-hop R@5", "1-hop R@5 (realistic)", "LME recall@5", "LME QA (our LOSS)"]
+    y-axis "score %" 0 --> 100
+    bar [88.4, 86.0, 91.4, 100.0, 45.6]
+    bar [77.4, 63.8, 84.2, 98.9, 56.7]
+```
 
-Already running Claude Code or Codex? There are two ways to wire GBrain in, depending on what you want.
+<sub>First four pairs: relational head-to-head vs the **real gbrain binary** (perfect-graph control for the first two; both-auto-extract for 1-hop) and LongMemEval oracle evidence recall. Last pair: LongMemEval oracle **QA accuracy, where we lose to a graph-less baseline** - kept on the same chart, same scale, because hiding it is how benchmarks become marketing. Caveats and per-condition detail: [BENCHMARKS.md](BENCHMARKS.md).</sub>
 
-**Just want a memory for your coding agent (recommended starting point).** Spin up a local brain and connect it in two commands — zero server, zero token, zero tunnel:
+### Why the harness bugs mattered (and which side each one hurt)
+
+```mermaid
+flowchart LR
+    A["First LongMemEval run<br/>baseline 'wins' QA 77.8 vs 50.0"] --> B{"Audit the harness,<br/>not the loser"}
+    B --> C["Bug 1: blind sleep vs async indexing<br/>hurt HydraDB"]
+    B --> D["Bug 2: baseline never chunked<br/>pool ≤ k ⇒ recall 100% by construction<br/>helped baseline"]
+    B --> E["Bug 3: n=18, one flip = ±33pp<br/>hurt everyone"]
+    B --> F["Bug 4: rows list before they index<br/>hurt HydraDB"]
+    B --> G["Bug 5: namespaces polluted by prior runs<br/>hurt HydraDB"]
+    C & D & E & F & G --> H["Fix all five,<br/>re-run 90 questions"]
+    H --> I["Recall: HydraDB 100%<br/>fully vindicated"]
+    H --> J["QA: 45.6 vs 56.7<br/>still a loss - published as one"]
+```
+
+---
+
+## 🎯 The goal (north star - keep us aligned)
+
+> **A personal second brain over everything I consume.**
+> Dump in *all* the content I take in - Instagram saves, YouTube videos, articles,
+> podcasts, notes - then **chat with it and get answers as accurate as possible**, out of
+> the box.
+>
+> **Accuracy first, then scale the ingestion.** That's why this repo leads with rigorous,
+> reproducible benchmarks instead of a flashy demo: if the memory can't answer accurately
+> on a small, hard corpus, no amount of ingestion volume will save the chat experience.
+
+---
+
+## 📍 The migration - gbrain → HydraDB (the headline goal + living tracker)
+
+> **🎯 What we're building & showing off:** a **capability migration** - gbrain, the
+> "next Postgres for memory," **reimplemented feature-for-feature on HydraDB's graph-native
+> store.** gbrain assembles its memory from pgvector + BM25 + RRF + a reranker + a hand-rolled
+> graph extractor; we collapse that whole stack into HydraDB's native `capture`/`recall`.
+> Same capabilities, a fraction of the moving parts - *that's* the story (and the benchmarks
+> below are the receipts). This is the narrative for the blog posts / articles / threads.
+>
+> **Scope (important for honesty):** this is **(A) capability reimplementation** - rebuilding
+> gbrain's *features* on HydraDB as a fresh Python package (`hydrabrain/`). It is **not**
+> **(B) data-migration ETL**: there's no tool that reads an existing gbrain pgvector/graph
+> brain and bulk-loads it into HydraDB, and that's out of scope. gbrain's TS `src/` stays
+> unchanged (it legitimately uses pgvector/PGLite); the benchmark *reproduces* gbrain's
+> algorithm, it never reads a real gbrain database.
+>
+> **Legend:** ✅ done · 🟡 partial · ◐ delegated to HydraDB / OS · ⬜ not started. *Last updated: 2026-07-10.*
+
+**Stage: core memory loop + the everyday product surface (sync, connectors, source scoping, enrich, briefing, export, chat) all migrated. What's left is mostly gbrain's heavy ops (mounts, schema/lens packs, identity, cron, advisor).**
+
+| Area | Status | Notes |
+|---|:---:|---|
+| Ingest / capture | ✅ | `capture` / `ingest_file` → `add_memory(infer=True)` |
+| Hybrid retrieval (vector+BM25+RRF+rerank) | ✅ | one native HydraDB `recall` call |
+| Self-wiring knowledge graph | ✅ | native `infer=True`, no extractor code |
+| Synthesis (cited answers) | ✅ | `think` - Gemini grounding over HydraDB chunks |
+| Graph traversal / explore | 🟡 | `graph_relations` by `source_id` only |
+| Status / list / delete / wipe | ✅ | tenant + memory count, live deletes |
+| CLI (`hydrabrain`) | ✅ | 19 commands incl. sync/read/enrich/briefing/export/chat/doctor |
+| MCP server | ✅ | 8 tools: capture/read_url/search/think/briefing/enrich/graph/status |
+| **Fair relational head-to-head (vs real gbrain, graph ON)** | ✅ | **DONE - HydraDB wins overall + multi-hop even with gbrain handed a perfect graph:** R@5 88.4% vs 77.4%, 2-hop 86.0% vs 63.8%, MRR 0.894 vs 0.826; when both auto-extract from prose, 88.0% vs 50.0%. gbrain wins 1-hop *only* with a hand-built perfect graph (100% vs 92%); HydraDB wins 1-hop under realistic extraction (91% vs 84%). Reproduce: `python3 -m bench.relational_v2 --seed-edges --report`. |
+| Architecture (retrieval surface) | ✅ | **29× less code** - 327 LOC (one `recall()`) vs 9,345 across 32 files (6 stages). Deterministic, offline: `python3 -m bench.architecture`. |
+| LongMemEval-S at scale (vs **BM25** baseline) | ✅ | 42 qs × ~48 distractor sessions: QA accuracy 38.1% vs 16.7% (evidence recall tied 97.6%). **Opponent is BM25, not full gbrain.** `python3 -m bench.lme_scale --limit 42`. |
+| **LongMemEval oracle, fixed harness (90 qs)** | ✅ | Rebuilt after a 5-bug fairness review (async-indexing race ×2, unchunked baseline, n=18 noise, namespace pollution). **HydraDB: perfect evidence recall (100% vs 98.9%) but LOSES QA 45.6% vs 56.7%** to a chunked graph-less baseline - honest loss, details below. `python3 -m bench.longmemeval --report`. |
+| Bulk sync / import | ✅ | `hydrabrain sync` - incremental, content-hash dedup, manifest-backed |
+| Ingestion connectors (articles / tweets / YouTube) | 🟡 | article reader + **tweets (free oEmbed)** + YouTube transcript (`hydrabrain read <url>`); LinkedIn best-effort; IG/podcasts next |
+| Source scoping (brains/sources two-axis) | 🟡 | `--source` → HydraDB sub_tenant namespace; full 6-tier resolution + mounts not yet |
+| Export | ✅ | `hydrabrain export <dir>` - dumps (tenant, source) to Markdown + manifest |
+| Enrichment (summary / tags / entities) | 🟡 | `enrich` done; schema/lens packs not |
+| Reports / briefing | ✅ | `hydrabrain briefing [topic]` - synthesized digest over memory |
+| Chat over `think()` (REPL + **web UI**) | ✅ | `hydrabrain chat` REPL **and** `hydrabrain web` - zero-dep creator UI (add link/note, cited chat) |
+| **Onboarding / first-run key setup** | ✅ | `hydrabrain init` + web setup screen, **Free mode vs. keys** choice, writes `~/.hydrabrain/.env` (chmod 600), validates HydraDB live, first-run guard |
+| Cron / scheduling | 🟡 | `hydrabrain cron add/list/remove` + OS crontab; no pre-wired jobs - see [Company cron playbook](demos/cron-playbook.html) |
+| Identity / access control / trust boundary | ◐ | largely **delegated to HydraDB** (API key + tenant/sub_tenant isolation); no per-op trust flags yet |
+| Advisor / skillpacks | ⬜ | gbrain-specific; low north-star value - deferred |
+| Data-migration ETL (real gbrain brain → HydraDB) | - | **out of scope** - this is a capability migration, not a data move |
+
+**Recently shipped:** ✅ **zero-friction onboarding** (`init` + web setup, Free-mode vs keys) · ✅ **free
+tweet connector** (no-auth oEmbed) · ✅ bulk `sync` · ✅ web/YouTube connectors · ✅ source scoping ·
+✅ enrichment · ✅ briefing · ✅ export · ✅ chat REPL · ✅ **web UI** · ✅ MCP → 8 tools.
+**Next up (in priority order):** (1) run `lme_scale` against **real gbrain** (not just the BM25 baseline) ·
+(2) grow the relational corpus toward gbrain's 240-doc scale · (3) Instagram/podcast connectors ·
+(4) full brains/sources resolution + mounts. See [Next steps](#next-steps-toward-the-north-star).
+
+---
+
+## 📊 The benchmark: the fair relational head-to-head
+
+This compares **HydraDB** against the **real gbrain** that ships in this fork's `src/` - PGLite
+engine, Gemini embeddings, typed-edge graph **on**, relational arm engaged - driven via
+`bun src/cli.ts`. Same 50-entity prose corpus, same 149 queries (1- and 2-hop), same gold labels.
+Each system builds its graph its own way: HydraDB `infer=True`, gbrain `extract links --ner`.
+
+### First, the fairness bugs we found in our *own* harness
+
+An earlier version of this benchmark showed a HydraDB blowout. It was wrong - the harness was
+unfair to gbrain. We fixed three bugs before trusting any number, and the harness now guards each:
+
+1. **gbrain's graph wasn't being built.** Its default schema pack ships no edge-inference regexes,
+   so prose produced **zero** typed edges. Fixed: activate the pack that has them; an integrity gate
+   now **aborts** if the edge count is zero.
+2. **Edges were mis-typed.** On dense prose, gbrain's NER labelled `works_at` as `founded`. Fixed:
+   the gate checks edge-type **correctness**, not just count.
+3. **gbrain's relational arm sat dormant.** The default query path is vector-dominant; the graph
+   walk only engages with `relational:true`. Without it we were under-measuring gbrain. Fixed: on.
+
+We then went further and **handed gbrain a 100%-correct graph** (verified) via its own published
+seeding method - so a HydraDB win can't be dismissed as "you broke gbrain's extraction."
+
+### The scorecard
+
+| Metric | gbrain (graph ON) | **HydraDB** | Edge |
+|---|:---:|:---:|---|
+| **R@5** - gbrain handed a **perfect graph** | 77.4% | **88.4%** | HydraDB **+11** |
+| **R@5** - both **auto-extract from prose** | 50.0% | **88.0%** | HydraDB **+38** |
+| **1-hop** R@5 (gbrain handed a **perfect graph**) | **100.0%** | 92.3% | **gbrain +8** |
+| **1-hop** R@5 (both **auto-extract from prose**) | 84.2% | **91.4%** | **HydraDB +7** |
+| **2-hop / multi-hop** R@5 (perfect graph) | 63.8% | **86.0%** | HydraDB **+22** |
+| **2-hop / multi-hop** R@5 (auto-extract) | 29.4% | **86.0%** | HydraDB **+57** |
+| **MRR** (perfect graph) | 0.826 | **0.894** | HydraDB |
+
+> 📊 **Full methodology + raw outputs:** [`BENCHMARKS.md`](BENCHMARKS.md) · harness: [`bench/relational_v2.py`](bench/relational_v2.py)
+
+Two honest readings:
+- **Even with a perfect graph and its arm on, HydraDB wins relational retrieval overall and dominates
+  multi-hop** (2-hop 86% vs 64%) - in one `recall()` call, no assembled pipeline.
+- **HydraDB's biggest edge is robust auto-extraction from raw prose.** When both systems extract for
+  themselves, HydraDB holds 88% while gbrain drops to 50% - because gbrain's regex NER recovered only
+  **44%** of the relationships. Feed both the same documents, HydraDB builds the more useful graph.
+
+### Architecture - what a maintainer owns
+
+Deterministic, offline (`python3 -m bench.architecture`): HydraDB's retrieval surface is **~29× less
+code** - **327 LOC** (one `recall()`) vs **9,345 LOC across 32 files** for gbrain's 6-stage pipeline
+(dense + BM25 + RRF + reranker + query-expansion + graph). **1 external service vs 4.**
+
+### LongMemEval: the harness we had to fix five times - and an honest loss
+
+We also ran [LongMemEval](https://arxiv.org/abs/2410.10813) (ICLR 2025), the standard
+long-term-memory benchmark, on two splits. The oracle-split harness originally showed the
+baseline winning big - a review flagged three fairness bugs, and fixing those exposed two more.
+All five silently skewed the score, and four of the five penalized HydraDB:
+
+1. **Blind sleep vs async indexing** - HydraDB was queried before ingestion finished.
+2. **Unchunked baseline** - whole sessions as single search units meant fewer candidates than
+   top-k on this split: the baseline returned everything it had and "won" recall by default.
+   Now it chunks exactly like real gbrain (300w / 50w overlap / 6000-char cap, verified against
+   gbrain's chunker source).
+3. **n=18** - 3 questions per ability; one flip moved a category ±33 pp. Now n=90.
+4. **Rows list before they index** - count-based readiness still under-measured HydraDB
+   (17 of 52 recall "misses" flipped to hits on re-query). The harness now polls the actual
+   query until its results stabilize.
+5. **Namespace pollution** - earlier runs left ~48 distractor sessions in most namespaces, so
+   HydraDB searched a ~50-session haystack while the baseline searched 1–4.
+
+**The fixed result (90 questions, evidence-only haystacks, same Claude answerer+judge both sides):**
+
+| Metric | gbrain-stack (chunked, no graph) | **HydraDB** |
+|---|:---:|:---:|
+| evidence recall@5 | 98.9% | **100.0%** |
+| QA accuracy | **56.7%** | 45.6% |
+
+Two honest readings:
+- **Retrieval fully vindicated:** with the artifacts gone, HydraDB found the evidence on all 90
+  questions. (Recall is near-ceiling for both by design on this split - the discriminating
+  recall test is the at-scale run, where HydraDB more than doubled BM25's QA, 38.1% vs 16.7%,
+  on tied recall.)
+- **HydraDB loses oracle QA, 45.6% vs 56.7%.** Both retrieve the right session; answers built
+  from the baseline's chunks judge correct more often, worst on temporal-reasoning and
+  preference questions. This is a loss to a *graph-less* baseline - weaker than real gbrain -
+  and we report it as a real weakness in single-needle answer synthesis, not noise.
+
+#### The "100% recall" trap - what's true and what's not
+
+When we showed bug #2 around, the reaction was: *"so the benchmark was cheating - it searched
+inside the same session it ingested. They're faking their benchmarks, like testing a model on
+its training input."* Half of that is exactly right, and half needs correcting. For the record:
+
+**What's true.**
+- The pre-fix baseline's recall number was **meaningless by construction**. The arithmetic that
+  exposes it: unchunked, an N-session haystack yields N candidates; with N ≤ top-k (here 1-4
+  sessions vs k=5) *every* candidate is returned on *every* query - "R@5 = 100%" no matter
+  whether the search logic works at all. Meanwhile HydraDB chunked the same content into many
+  competing pieces (as it does in production) and had a real ranking problem the baseline never
+  faced.
+- The audit method that catches this is the right one for ANY retrieval pipeline: read the
+  design before the results - chunk size, overlap, dense/sparse arms, fusion - and derive the
+  *expected* recall from candidate-pool size vs k before believing any measured recall.
+  **If pool ≤ k, recall is not a metric.**
+- Even after chunking the baseline properly, oracle recall stays near-ceiling for both sides
+  (100% vs 98.9%) because the split ships evidence-only haystacks - it removes the retrieval
+  challenge by design. **Recall@5 on the oracle split differentiates nothing**, and that cuts
+  against our own number too: 45 of the 90 questions have a single-session haystack, where
+  "found the evidence" collapses to "returned anything at all". Treat HydraDB's 90/90 as a
+  health check (no indexing losses, no empty results), not a win. The differentiating numbers
+  are QA accuracy (where we lose, above) and the `_s` split with ~48 distractor sessions per
+  question, where retrieval is actually hard - there HydraDB beat BM25 38.1% vs 16.7% QA on
+  tied recall.
+- One of the 90 rows carries a disclosed workaround: its namespace stopped indexing new content
+  after a bulk delete (rows stored but unsearchable), so it was scored via a fresh namespace -
+  noted in the row itself in the raw receipts.
+
+**What's not true: "gbrain fakes its benchmarks."**
+- The unchunked baseline was a bug in **our own harness** - the hand-written reproduction in
+  this fork's `bench/` - not in anything gbrain published. The real gbrain product DOES chunk
+  (verified in its source: `src/core/chunkers/recursive.ts` - 300 words / 50-word overlap /
+  6000-char cap; our fixed baseline copies those exact parameters), and our headline benchmarks
+  run against the real gbrain binary, not a stand-in.
+- Note the direction: the too-easy recall **helped the baseline and hurt HydraDB's relative
+  numbers**. Fixing it was pro-HydraDB. An honest harness bug, found, fixed, and documented -
+  the accusation the data supports is against our own v1 harness, nobody else's.
+
+**And the advantage that survives all of this - assembled vs native.** Both stacks end up with
+a knowledge graph; the difference is who builds and owns the machinery. In gbrain the graph is
+*your code's* responsibility: an extractor pulls entities and typed edges out of ingested text
+into local tables, and gbrain's own code fuses graph hits with its vector and BM25 arms - one
+of the six assembled stages behind its 9,345 retrieval LOC. If extraction drifts or fusion
+weights are off, that's yours to debug. In hydrabrain there is essentially **no graph code at
+all**: `add_memory(infer=True)` builds the graph server-side, and one `recall()` returns
+dense+sparse+graph already fused - 327 LOC of client code total. HydraDB didn't abolish the
+extraction pipeline; it **absorbed** it. That trade cuts both ways, and we say so: the
+simplicity is bought with a **hosted dependency** (when the API is down, retrieval returns
+nothing; gbrain's local-first PGLite is always available), and gbrain currently offers more
+direct control over *walking* the graph (hydrabrain's traversal surface is partial) precisely
+because you own the tables.
+
+Raw per-question receipts: [`bench/longmemeval_results.json`](bench/longmemeval_results.json).
+Full methodology + the operational bugs we hit (and how the harness survives them):
+[`BENCHMARKS.md`](BENCHMARKS.md) §8. Reproduce (auto-downloads the dataset, checkpoints every
+question, resumes across free-tier quota walls):
 
 ```bash
-gbrain init --pglite                     # 2-second local brain (no Docker)
-claude mcp add gbrain -- gbrain serve    # or: codex mcp add gbrain -- gbrain serve
+python3 -m bench.longmemeval --report
 ```
 
-**Already have a brain on a remote host** (OpenClaw, Hermes, or any `gbrain serve --http`)? Point your laptop agents at it with one command each — `--install` wires it up and smoke-tests the token before handoff:
+### What this does NOT prove (read before you cite a number)
+
+- **gbrain wins simple 1-hop lookups only when handed a perfect, hand-built graph** (100% vs 92%).
+  This is *not* a case of HydraDB being weak at single-hop - 92% is HydraDB's strongest tier. When
+  both systems extract edges from prose (the realistic condition), **HydraDB wins single-hop too**
+  (91% vs 84%). gbrain's single-hop edge exists only under the artificial perfect-graph control;
+  HydraDB's win is *overall + multi-hop + extraction*.
+- **The corpus is small and synthetic** - 50 entities, 149 queries. A relational probe, not an
+  at-scale benchmark. gbrain's own published R@5 is 97.9% on a 240-doc corpus.
+- **HydraDB is hosted** → results are **not bit-deterministic** (drift a few points per run; quote
+  ranges), and it carries uptime + per-call cost risk vs gbrain's local-first PGLite. gbrain's side
+  *is* deterministic.
+- **The LongMemEval-S at-scale result** (QA 38.1% vs 16.7%) is **vs a BM25 baseline, not full
+  gbrain** - evidence recall was tied (97.6%). Running it against real gbrain is next.
+- **The LongMemEval oracle result is a loss** - HydraDB 45.6% QA vs 56.7% for a chunked,
+  graph-less baseline, despite perfect evidence recall. It is not a gbrain-vs-HydraDB number
+  (the baseline lacks gbrain's graph + reranker), but it is a real single-needle QA gap and we
+  are not explaining it away.
+
+**Honest bottom line:** fed the same documents, HydraDB's graph-native retrieval beats real gbrain
+overall and on multi-hop - even when gbrain is handed a perfect graph - with a fraction of the moving
+parts. gbrain edges out single-hop *only* when handed a perfect hand-built graph; under realistic
+extraction HydraDB wins single-hop too. On the other side of the ledger: the at-scale-vs-gbrain
+claim is not yet earned, and HydraDB *loses* LongMemEval oracle QA to a graph-less baseline
+(45.6% vs 56.7%) despite perfect recall. Every number here regenerates from one command.
+
+## The architectural difference (assemble vs. native)
+
+This is the *why* behind the numbers. gbrain is excellent - but look at what it has to *assemble* to get its memory:
+
+```
+gbrain:   pgvector(HNSW)  +  BM25  +  reciprocal-rank fusion  +  reranker  +  ⟨hand-rolled graph extractor⟩
+hydrabrain (HydraDB):   brain.capture(text)         # infer=True → graph built, zero extra LLM calls
+                        brain.think("...")          # hybrid dense+graph+BM25, cited answer
+```
+
+The knowledge graph is the part gbrain credits for **+31.4 P@5**. It's also the part that's
+hardest to build, tune, and keep wired. HydraDB makes it a property of `ingest`, not a
+pipeline you own. Everything gbrain exposes, hydrabrain exposes - on top of that native graph.
+
+```python
+from hydrabrain.engine import BrainEngine
+brain = BrainEngine()
+brain.capture("On May 7, 2022 we bought a white Tesla Model 3 together.")
+print(brain.think("What car did we buy?").render())
+#  A white Tesla Model 3, bought on May 7, 2022 [1].
+#  Sources: [1] May 7, 2022 - Buying a Car Together, Tesla Model 3: ...
+```
+
+---
+
+## ⚡ Install in one line
 
 ```bash
-gbrain connect https://your-host/mcp --token gbrain_xxx --install               # Claude Code
-gbrain connect https://your-host/mcp --token gbrain_xxx --agent codex --install # Codex
+curl -fsSL https://raw.githubusercontent.com/iharnoor/hydrabrain/master/scripts/install.sh | bash
 ```
 
-**[→ Full walkthrough: give your coding agent a memory](docs/tutorials/connect-coding-agent.md)** — both paths end to end, plus the brain-first protocol you paste into `CLAUDE.md` / `AGENTS.md` and the four habits that make it actually change how you work.
+Clones (if needed) → builds a `.venv` (works on Homebrew/managed Python - no PEP 668 error) →
+installs deps → guided key setup (**Free mode = just a HydraDB key**) → verifies → registers the
+MCP server with Claude if present. Article, tweet, and **YouTube** ingestion all work out of
+the box. Agents: invoke the **`setup-hydrabrain`** skill.
 
-### Install the full autonomous setup into your existing agent
-
-Want the whole thing — local brain, 43 skills, the overnight dream cycle that enriches while you sleep? Paste this into Codex, Claude Code, Cursor, or another coding agent:
-
-```
-Retrieve and follow the instructions at:
-https://raw.githubusercontent.com/garrytan/gbrain/master/INSTALL_FOR_AGENTS.md
-```
-
-This works in any agent that can read files over HTTPS and execute shell commands. Tested with Codex, Claude Code, Claude Cowork, Cursor, and AlphaClaw.
-
-### CLI standalone (no agent)
+**Other ways to install:**
 
 ```bash
-bun install -g github:garrytan/gbrain
-gbrain init --pglite     # 2 seconds; no server, no Docker
-gbrain doctor            # verify health
-gbrain import ~/notes/   # index your markdown
-gbrain query "what themes show up across my notes?"
+# From a clone, via make:
+make install        # venv + deps + guided key setup     make web   # launch the UI
+make dev            # editable install + test tools       make doctor
+
+# Global `hydrabrain` command, isolated (pipx manages its own venv - PEP-668-safe):
+pipx install git+https://github.com/iharnoor/hydrabrain.git
+hydrabrain init && hydrabrain web --open
 ```
 
-Postgres-at-scale, Supabase, and thin-client setup paths live in [`docs/INSTALL.md`](docs/INSTALL.md).
+---
 
-### Connect GBrain to your AI client (MCP)
+## 🖥️ Web UI - ready out of the box
 
-GBrain exposes 30+ tools over MCP (stdio and HTTP). The specific snippet depends on which client you use:
-
-- **[Claude Code](docs/mcp/CLAUDE_CODE.md)** — local: one command, `claude mcp add gbrain -- gbrain serve` (zero server, zero tunnel). Remote with just a bearer token: `gbrain connect https://your-host/mcp --token gbrain_xxx` prints a paste-ready block (or `--install` wires it up and smoke-tests the token).
-- **[Codex](docs/mcp/CODEX.md)** — `gbrain connect https://your-host/mcp --token gbrain_xxx --agent codex` (or `--install`). Codex reads the bearer from `$GBRAIN_REMOTE_TOKEN` at runtime, so the token never lands in Codex config.
-- **[Cursor / Windsurf / any stdio MCP client](docs/mcp/CLAUDE_CODE.md)** — same shape, add `{"command": "gbrain", "args": ["serve"]}` to your MCP config.
-- **[Claude Desktop (Cowork)](docs/mcp/CLAUDE_DESKTOP.md)** — Settings → Integrations → add the URL of your HTTP server. Remote only; the local `claude_desktop_config.json` does not work for remote servers.
-- **[Claude Cowork (team plan)](docs/mcp/CLAUDE_COWORK.md)** — org Owner adds the connector under Organization Settings → Connectors.
-- **[Perplexity Computer](docs/mcp/PERPLEXITY.md)** — `gbrain connect https://your-host/mcp --agent perplexity --oauth --register` mints a least-privilege OAuth client and prints the Issuer/Client ID/Secret to paste into Settings → Connectors (OAuth is the right path for a cloud connector; a bearer token also works for local use). Pro subscription required.
-- **[ChatGPT](docs/mcp/CHATGPT.md)** — uses OAuth 2.1 with PKCE (the hard requirement). Register a `chatgpt` client from the admin dashboard with grant type `authorization_code`.
-
-For the HTTP server itself:
+Built for **creators**: paste a blog post, article, or YouTube URL and it's in your brain;
+then chat with everything you've made and consumed - answers come back **with citations**.
 
 ```bash
-gbrain serve              # stdio MCP (local subprocess; for Claude Code, Cursor, Windsurf)
-gbrain serve --http       # HTTP MCP with OAuth 2.1 + admin dashboard at /admin
-                          # (required for Claude Desktop, Cowork, Perplexity, ChatGPT)
+hydrabrain web --open        # → http://127.0.0.1:8765, opens your browser
 ```
 
-The HTTP server includes DCR-style client registration, scope-gated access (`read` / `write` / `admin`), and rate limiting. Deployment guides (ngrok, Railway, Fly.io) live under [`docs/mcp/`](docs/mcp/).
+**First run is guided.** No keys yet? `hydrabrain web` serves a **setup screen** - pick
+**🆓 Free mode** (just a free HydraDB key: capture, add links, search) or **🔑 I have my keys**
+(add a free Gemini key too for synthesized, cited answers). Keys save to `~/.hydrabrain/.env`
+(chmod 600). Prefer the terminal? `hydrabrain init` does the same in ~30 seconds.
 
-## Two ways to query your brain
+**Zero new dependencies** - served by the Python stdlib (no Flask/FastAPI/uvicorn to install),
+so it runs the instant you install hydrabrain. One self-contained page (no CDNs, works offline
+except for the API calls it makes to your own brain).
 
-Raw retrieval (what most personal-knowledge tools ship) and a synthesis layer that gives you an actual answer. They serve different jobs.
+- **🔗 Add a link** - articles + YouTube transcripts are fetched, cleaned, and graph-wired automatically.
+- **✏️ Add a note** - drop a thought, quote, or takeaway.
+- **💬 Ask** - cited answers with inline `[n]`, expandable sources, and explicit gap analysis.
+- Live status pill (memory count · brain · source). Scopes to any source with `hydrabrain --source <s> web`.
+
+Endpoints (all JSON, for embedding elsewhere): `GET /api/status` · `POST /api/read` ·
+`POST /api/capture` · `POST /api/think` · `POST /api/search`.
+
+---
+
+## 🏢 Company brain - cron + push playbook
+
+Scheduled jobs **push** institutional knowledge into HydraDB (`sync`, `capture`, `read`).
+Agents and employees **pull** cited answers the next day (`think`, `search`, `graph` via MCP).
+Every ingest runs with `infer=True`, so people, companies, and deals link in the graph without a
+separate extraction pipeline.
+
+**Interactive guide:** [`demos/cron-playbook.html`](demos/cron-playbook.html) - filter by team
+(Sales · CS · Engineering · Legal · Leadership · Ops), copy-paste cron packs, and HydraDB vs
+gbrain TS comparison. Open locally:
 
 ```bash
-# raw retrieval: top pages by hybrid score, fast, no LLM cost
-gbrain search "who's working on AI agents at portfolio companies?"
-
-# brain layer: synthesized answer with citations and gap analysis
-gbrain think "who's working on AI agents at portfolio companies?"
+open demos/cron-playbook.html
 ```
 
-**`gbrain search`** returns the top retrieved pages, ranked by hybrid scoring (vector + keyword + RRF + source-tier boost + reranker). Use it when you want raw material to skim: agent context windows, citation lookups, finding a specific quote.
-
-**`gbrain think`** runs the same retrieval, then composes a synthesized answer across the results with explicit citations to the source pages AND an honest note on what the brain doesn't know yet. The gap analysis is the differentiator: the answer tells you when a page is stale, when a claim is uncited, when two pages contradict each other, when there's a hole you should fill.
-
-**Why it compounds.** Pair the brain layer with `find_trajectory` and you get answers like *"how have the company's metrics changed AND what does the team look like right now AND what did they promise / share AND when did we last meet AND what's the value-add I can offer here"*: well-scored, well-cited, in one shot. That's the strategic moat. That's why building a 100K-page brain is worth the effort.
-
-`gbrain agent run "..."` exposes the same surface to a sub-agent through the Minions queue, with crash-safe two-phase persistence. Same answers, durable.
-
-## How to get data in
-
-One command, local or hosted, synchronous receipt:
+**Honest default:** fresh install ships **zero** crontab entries. A 25-person company can be
+live in ~30 minutes with three pushes + MCP:
 
 ```bash
-gbrain capture "the thought I want to remember"
-gbrain capture --file ./notes/today.md
-echo "from a pipe" | gbrain capture --stdin
-SLUG=$(gbrain capture "..." --quiet)
+hydrabrain cron add "*/15 * * * *" "hydrabrain sync ~/company-docs --source wiki"
+hydrabrain cron add "0 7 * * 1-5"   "hydrabrain briefing >> ~/briefings/daily.md"
+hydrabrain cron add "0 0 * * 0"     "hydrabrain export ~/backups/weekly"
+claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
 ```
 
-The page lands in the database and on disk in one move. Default slug `inbox/YYYY-MM-DD-<hash8>` so captures cluster in a predictable triage location. On thin-client installs the verb routes through MCP to the server: same command, same UX.
+| Cron (push) | Who pulls | Company outcome |
+|---|---|---|
+| `sync` every 15-30 min | Agents via MCP `search` | Wiki / CRM / meeting exports stay current |
+| `capture` at decision time | Next `think` / morning `briefing` | Meeting outcomes don't die in chat |
+| `briefing` daily 7 AM | Leadership reads digest | Exec team aligned without a 90-min standup |
+| `export` weekly | Legal / compliance | Auditable snapshot; portable exit path |
 
-For webhook ingestion (Zapier / IFTTT / Apple Shortcuts):
+Upstream gbrain's reference schedule (email, meetings, dream cycle) lives in
+[`docs/guides/cron-schedule.md`](docs/guides/cron-schedule.md) and
+[`recipes/`](recipes/) - DIY collectors, not pre-installed. Opt-in daemon:
+`gbrain autopilot --install` (one maintenance loop, not 50+ jobs).
+
+**Video explainer (HyperFrames):** [`demos/hydrabrain-video/`](demos/hydrabrain-video/) - 78-second
+problem → solution journey (scattered knowledge → cron push → HydraDB graph → agent pull).
+Preview with `cd demos/hydrabrain-video && npm run dev`, render with `npm run render`, or open
+[`output/hydrabrain-enterprise.mp4`](demos/hydrabrain-video/output/hydrabrain-enterprise.mp4) after rendering.
+
+---
+
+## 🔬 Deeper dive + the at-scale test
+
+The full scorecard, the three fairness bugs we fixed, and the architecture numbers are in
+[the benchmark section above](#-the-benchmark-the-fair-relational-head-to-head). Full methodology
++ raw per-query outputs live in [`BENCHMARKS.md`](BENCHMARKS.md) and the `bench/` directory.
+
+### LongMemEval-S - the academic at-scale test (vs a BM25 baseline)
+
+[LongMemEval](https://github.com/xiaowu0162/LongMemEval) (ICLR 2025) is the standard long-term
+chat-memory benchmark: each question ships its own multi-session haystack. We ran the **`_s` split
+with distractors** - 42 questions × ~48 sessions each, Claude Haiku as answerer + judge:
+
+| Metric | BM25 baseline | **HydraDB** |
+|---|:---:|:---:|
+| evidence recall@5 | 97.6% | 97.6% (tied) |
+| QA accuracy (LLM-judge) | 16.7% | **38.1%** (2.3×) |
+
+**Honest scope:** the opponent here is a **BM25 lexical baseline, NOT full gbrain** (it's the keyword
+arm of gbrain's pipeline). Evidence recall is tied - HydraDB's QA gain comes from feeding cleaner
+chunks + graph context to the same answerer, partly a chunk-vs-whole-session granularity effect.
+Running this against the real gbrain binary is the next step.
 
 ```bash
-curl -X POST https://your-brain/ingest \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: text/markdown" \
-  -d "# a thought from a Shortcut"
+python3 -m bench.lme_scale --data bench/data/longmemeval_s_cleaned.json --limit 42 --hydra-wait 120
 ```
 
-For mobile capture, the inbox folder source picks up anything dropped into
-`~/.gbrain/inbox/` from iOS Shortcuts / AirDrop / Drafts / Finder.
+---
 
-Third-party skillpacks can ship custom ingestion sources (Granola, Linear,
-voice, OCR) against the versioned `IngestionSource` contract at
-`gbrain/ingestion`. See [`docs/skillpack-anatomy.md`](docs/skillpack-anatomy.md).
+## Capabilities (mirrors gbrain's `#capabilities`)
 
-## Your brain's shape (schema packs)
+| gbrain capability | hydrabrain (HydraDB) |
+|---|---|
+| Hybrid search (vector + BM25 + RRF + rerank) | `brain.search()` → HydraDB hybrid recall (`mode=thinking`) |
+| Self-wiring knowledge graph (typed edges) | **native** via `infer=True` - no extraction code |
+| Synthesis layer (cited prose + gap analysis) | `brain.think()` (Gemini grounding over retrieved chunks) |
+| 30+ tool MCP server (stdio) | `hydrabrain serve` (FastMCP: capture/read_url/search/think/briefing/enrich/graph/status) |
+| Eval framework (LongMemEval-style P@5) | `bench/` - four benchmarks, R@5 / P@5 / MRR / LLM-judge QA + committed receipts |
+| Bulk sync (incremental dir ingest) | `brain.sync(paths)` / `hydrabrain sync <dir>` - content-hash dedup, idempotent |
+| Onboarding (`gbrain init`) | `hydrabrain init` / web setup screen - Free-mode vs keys, writes `~/.hydrabrain/.env` |
+| Ingestion connectors (consume the web) | `brain.ingest_url(url)` / `hydrabrain read <url>` - articles + tweets (free oEmbed) + YouTube transcripts |
+| Brains / sources two-axis routing | `--tenant` (brain) + `--source` (HydraDB sub_tenant namespace) |
+| Enrichment (summary / tags / entities) | `brain.enrich()` / `hydrabrain enrich` (Gemini) |
+| Reports / briefing | `brain.briefing(topic)` / `hydrabrain briefing` |
+| Export / portability | `brain.export(dir)` / `hydrabrain export <dir>` → Markdown + manifest |
+| Chat | `hydrabrain chat` (REPL) **and** `hydrabrain web` (zero-dep web UI for creators) |
+| Cron / scheduling | `hydrabrain cron add/list/remove` - OS crontab wrapper; [playbook](demos/cron-playbook.html) |
+| CLI | `hydrabrain` - init/status/doctor/capture/ingest/sync/read/search/think/chat/web/briefing/enrich/graph/export/cron/jobs/serve/bench |
 
-Most personal-knowledge tools force one fixed layout: their idea of "notes" + "people" + "tags." Drop a Notion export or your own years-old Obsidian vault on top, and the agent doesn't know what a `Projects/` folder means or whether `Reading/` is people or sources.
-
-**gbrain doesn't have a fixed layout.** It ships with bundled schema packs and lets you author your own when none fit:
-
-- **`gbrain-base-v2`** (default as of v0.41.22) — 15-type DRY/MECE canonical taxonomy (14 canonical + `note` catch-all): `person`, `company`, `media`, `tweet`, `social-digest`, `analysis`, `atom`, `concept`, `source`, `deal`, `email`, `slack`, `writing`, `project`, `note`. Subtypes/format/origin pushed to frontmatter. The taxonomy that responds to issue #1479.
-- **`gbrain-base`** (legacy, v0.41 and earlier brains) — the original 24-type layout. Stays bundled for back-compat; brains on it can upgrade via `gbrain onboard --check --explain` → `gbrain jobs submit unify-types --allow-protected --params '{"target_pack":"gbrain-base-v2"}'`.
-- **`gbrain-recommended`** — extends `gbrain-base` with the 13 additional directories from `docs/GBRAIN_RECOMMENDED_SCHEMA.md` (source, place, trip, conversation, personal, civic, project, etc.). Activate with `gbrain schema use gbrain-recommended`.
-- **Your own pack** — `gbrain schema detect` clusters your actual filesystem into proposed types, `gbrain schema suggest` runs an LLM pass over them, and `gbrain schema review-candidates --apply` promotes the ones you like. Three commands and the brain knows your shape. Authoring a successor pack (declares `migration_from:` so existing brains can opt in): see [`docs/architecture/pack-upgrade-mechanism.md`](docs/architecture/pack-upgrade-mechanism.md).
+### CLI
 
 ```bash
-gbrain schema active                # which pack is running, which tier set it
-gbrain schema list                  # bundled + installed packs
-gbrain schema detect                # propose types matching your filesystem
-gbrain schema suggest               # LLM-refined proposals on top of detect
-gbrain schema review-candidates     # human gate: promote / rename / ignore
-gbrain schema use my-pack           # activate
+python3 -m hydrabrain.cli init                     # one-time setup (Free mode or paste keys)
+python3 -m hydrabrain.cli status
+python3 -m hydrabrain.cli capture "Saved a YouTube video on espresso ratios: 1:2 in 28s."
+python3 -m hydrabrain.cli ingest notes/*.md
+python3 -m hydrabrain.cli sync ~/notes            # bulk, incremental - skips unchanged files
+python3 -m hydrabrain.cli sync ~/notes --dry-run  # preview what would ingest
+python3 -m hydrabrain.cli read https://example.com/post   # ingest an article
+python3 -m hydrabrain.cli read https://youtu.be/VIDEO_ID   # ingest a video transcript
+python3 -m hydrabrain.cli read https://x.com/user/status/123  # ingest a tweet (free, no auth)
+python3 -m hydrabrain.cli search "espresso ratio" -k 5
+python3 -m hydrabrain.cli think  "what coffee setup did I save?"
+python3 -m hydrabrain.cli web --open                # web UI for creators (add link/note + cited chat)
+python3 -m hydrabrain.cli chat                      # interactive REPL over your brain
+python3 -m hydrabrain.cli briefing "coffee"         # synthesized digest on a topic
+python3 -m hydrabrain.cli enrich "..."              # summary + tags + entities
+python3 -m hydrabrain.cli export ./brain-backup     # dump brain to Markdown + manifest
+python3 -m hydrabrain.cli --source blog sync ~/posts  # scope to a source namespace
+python3 -m hydrabrain.cli cron add "0 7 * * 1-5" "hydrabrain briefing >> ~/briefings/daily.md"
+python3 -m hydrabrain.cli cron list
+python3 -m hydrabrain.cli serve         # MCP stdio server
 ```
 
-The active pack threads through every read + write path: `parseMarkdown` infers page type from the pack's path prefixes; `whoknows` scopes expert routing to types declared `expert_routing: true`; `extract_facts` runs only on `extractable: true` types; the search cache folds the pack name + version into its key so cross-pack contamination is structurally impossible. Switch packs and the brain re-interprets itself; switch back and nothing's lost.
-
-Seven-tier resolution chain (per-call flag → env var → per-source DB key → brain-wide DB key → `gbrain.yml` → `~/.gbrain/config.json` → `gbrain-base` default). Full reference + authoring guide: [`docs/architecture/schema-packs.md`](docs/architecture/schema-packs.md).
-
-## Tutorials
-
-Step-by-step walkthroughs for getting the most out of GBrain. Each one takes you from zero to a working outcome, with concrete commands and real numbers.
-
-- [**Set up your personal AI agent + brain from zero**](docs/tutorials/personal-brain.md) — the canonical full-stack install. Two GitHub repos, a Telegram bot, AlphaClaw on Render, OpenClaw + GBrain + Supabase. End-to-end in about 2 hours.
-- [**Set up GBrain as your company brain**](docs/tutorials/company-brain.md) — federated, multi-user, OAuth-scoped institutional memory for a 10-50 person team. About 90 minutes end-to-end.
-- [**Auto-improve a skill with `gbrain skillopt`**](docs/tutorials/improving-skills-with-skillopt.md) — treat a `SKILL.md` as a trainable parameter. Generate a starter benchmark straight from the skill with `--bootstrap-from-skill` (or write your own), strengthen the judges, then watch the optimizer propose edits and keep only the ones that measurably score higher. ~20 minutes, ~$1 in API calls. Flag + cost + safety reference: [`docs/guides/skillopt.md`](docs/guides/skillopt.md).
-
-More walkthroughs in progress: connecting an existing agent (Claude Code, Cursor, OpenClaw, Hermes) to a GBrain memory layer; setting up GBrain for VC dealflow with founder scorecards and meeting prep; migrating an existing Notion or Obsidian vault; indexing a codebase as a queryable code brain. Full tutorial index: [`docs/tutorials/`](docs/tutorials/).
-
-Want to see a tutorial that isn't here yet? [Open an issue](https://github.com/garrytan/gbrain/issues) describing the workflow you want documented.
-
-## What it does (the loop)
-
-```
-  signal   →   search   →   respond   →   write   →   auto-link   →   sync
-  (every    (brain-first  (informed     (page +    (typed edges     (cron
-  message)  retrieval)    by context)   timeline)  + backlinks)     keeps fresh)
-```
-
-- **Signal detector** runs on every message your agent receives. Captures ideas, entity mentions, time-sensitive todos, names, links.
-- **Brain-first lookup** before any external API call. The cheapest, fastest, most personal information source you have.
-- **Auto-link** fires on every page write. No LLM calls; pure pattern matching on `[[wiki/people/bob]]` style references. New entity → new page stub → graph grows.
-- **Cron-driven enrichment** runs while you sleep: dedup people pages, fix citations, score salience, find contradictions, prep tomorrow's tasks.
-
-The whole loop is described in [`docs/architecture/topologies.md`](docs/architecture/topologies.md) with diagrams.
-
-## Capabilities
-
-**Hybrid search.** Vector (HNSW on pgvector) + BM25 keyword + reciprocal-rank fusion + source-tier boost + intent-aware query rewriting. Three named search modes (`conservative`, `balanced`, `tokenmax`) bundle the cost/quality knobs into a single config key. Live cost/recall comparisons in [`docs/eval/SEARCH_MODE_METHODOLOGY.md`](docs/eval/SEARCH_MODE_METHODOLOGY.md). Default: `balanced` with ZeroEntropy reranker on. Per-query graph signals notice when a top result is a hub for THAT query (adjacency boost), is corroborated across team brains (cross-source boost), or is being crowded out by weak chunks from a chatty session (session demote). Run `gbrain search "<query>" --explain` to see per-stage attribution: base score, every boost that fired, what it multiplied. `gbrain doctor` ships a `graph_signals_coverage` check; `gbrain search stats` shows fire counts and failure breakdowns. Vector retrieval pools the best chunk per page, so a page surfaces on its strongest evidence instead of losing to a neighbor on one weak chunk. Queries that match a page's title phrase or a declared free-text alias (`gbrain reindex --aliases` backfills existing pages) get boosted to the page they name. Every result carries an `evidence` tag (why it matched) and a `create_safety` hint (`exists` / `probable` / `unknown`) so an agent decides whether a page already exists instead of guessing from a raw score. `gbrain search diagnose "<query>" --target <slug>` traces which retrieval layer surfaces (or misses) a page.
-
-**Self-wiring knowledge graph.** Every `put_page` extracts entity refs from markdown/wikilinks/typed-link syntax and writes edges with zero LLM calls. Typed edges (`attended`, `works_at`, `invested_in`, `founded`, `advises`, `mentions`, …). Multi-hop traversal via `gbrain graph-query`. The graph is what produces the +31.4 P@5 lift over vector-only RAG. **Obsidian-style vaults:** bare `[[note-name]]` wikilinks that point across folders — you wrote `[[struktura]]` but the page lives at `projects/struktura.md` — resolve by basename once you opt in with `gbrain config set link_resolution.global_basename true`. Off by default; `gbrain doctor` tells you how many edges you'd gain before you flip it. See [migrating an Obsidian vault](INSTALL_FOR_AGENTS.md#step-45-wire-the-knowledge-graph).
-
-**Job queue (Minions).** BullMQ-shaped, Postgres-native job queue. Durable subagents (LLM tool loops that survive crashes via two-phase pending→done persistence), shell jobs with audit, child jobs with cascading timeouts, rate leases for outbound providers, attachments via S3/Supabase storage. Replaces "spawn subagent as fire-and-forget Promise" with something that recovers from anything.
-
-**43 curated skills.** Routing lives in [`skills/RESOLVER.md`](skills/RESOLVER.md). Covers signal capture, ingest (idea / media / meeting), enrichment, querying, brain ops, citation fixing, daily task management, cron scheduling, reports, voice, soul audit, skill creation, eval framework, and migrations. Skills are markdown files (tool-agnostic), packaged as a single skillpack the installer drops into your agent workspace.
-
-**Eval framework.** `gbrain eval longmemeval` runs the public [LongMemEval](https://huggingface.co/datasets/xiaowu0162/longmemeval) benchmark against your hybrid retrieval. `gbrain eval export` + `gbrain eval replay` capture real queries and replay them against code changes (set `GBRAIN_CONTRIBUTOR_MODE=1`). `gbrain eval cross-modal` cross-checks an output against the task using three different-provider frontier models. `gbrain eval retrieval-quality` runs NamedThingBench, which hard-gates the named-thing retrieval families (title-substring, alias-synonym, generic-to-named, multi-chunk-dilution) so a regression in "find the page this query names" fails CI loudly. Full methodology in [`docs/eval/SEARCH_MODE_METHODOLOGY.md`](docs/eval/SEARCH_MODE_METHODOLOGY.md).
-
-**Brain consistency.** `gbrain eval suspected-contradictions` samples retrieval pairs, layered date pre-filter, query-conditioned LLM judge, persistent cache. Surfaces conflicts between takes + facts the agent has written. Wired into the daily dream cycle.
-
-**Agent-authored schema (v0.40.7.0).** Your brain has a shape — what page types exist (`person`, `meeting`, `paper`, `case`, `lab-result`), what they link to (`attended`, `authored`, `prescribed-by`), what facts get extracted automatically. The default ships with 22 universal types, but your brain's actual shape is not the default shape. Agents can now evolve that shape on your behalf via 14 `gbrain schema` CLI verbs + a batched MCP op (`schema_apply_mutations`, admin scope, NOT localOnly so remote agents reach it over HTTPS). Atomic file locks, audit log with the agent's identity, chunked UPDATE backfill in 1000-row batches that never wedge concurrent writers. The brain stops being a pile of notes and becomes something with structure. **Why it matters:** [`docs/what-schemas-unlock.md`](docs/what-schemas-unlock.md) — 7 killer use cases (4000 invisible meetings, founder ops brain, research brain, legal brain, team brain, agent-as-co-curator). **5-minute walkthrough:** [`docs/schema-author-tutorial.md`](docs/schema-author-tutorial.md). **Agent skill:** [`skills/schema-author/SKILL.md`](skills/schema-author/SKILL.md).
-
-## Integrations
-
-Data flowing into the brain. Each integration is a recipe — markdown + setup hints — that ships in `recipes/` and is discoverable via `gbrain integrations list`.
-
-- **Voice**: Phone calls create brain pages via Twilio + OpenAI Realtime (or DIY STT+LLM+TTS). Setup recipe: [`recipes/twilio-voice-brain.md`](recipes/twilio-voice-brain.md).
-- **Email + calendar**: webhook handlers that route to brain signals. [`docs/integrations/meeting-webhooks.md`](docs/integrations/meeting-webhooks.md).
-- **Embedding providers**: 16 recipes covering OpenAI (default fallback), OpenRouter, Voyage, ZeroEntropy (default), Google Gemini, Azure OpenAI, MiniMax, Alibaba DashScope, Zhipu, Ollama (local), llama.cpp llama-server (local), LiteLLM proxy. Pricing matrix + decision tree in [`docs/integrations/embedding-providers.md`](docs/integrations/embedding-providers.md).
-- **Rerankers**: ZeroEntropy `zerank-2` hosted (default in `tokenmax` mode) plus the v0.40.6.1 `llama-server-reranker` recipe for fully-local cross-encoder rerank via llama.cpp — runs Qwen3-Reranker or self-hosted ZeroEntropy weights against the same `gateway.rerank()` seam. Setup walkthrough in [`docs/ai-providers/llama-server-reranker.md`](docs/ai-providers/llama-server-reranker.md).
-- **Credential gateway**: vault-aware secret distribution. [`docs/integrations/credential-gateway.md`](docs/integrations/credential-gateway.md).
-- **MCP clients**: every major MCP client is supported. [`docs/mcp/`](docs/mcp/) per-client setup.
-
-## Architecture
-
-**Two engines, one contract.** PGLite (Postgres 17 via WASM, zero-config, default) for personal brains up to ~50K pages. Postgres + pgvector (Supabase or self-hosted) for shared / large / multi-machine deployments. The contract-first `BrainEngine` interface in [`src/core/engine.ts`](src/core/engine.ts) defines ~47 operations both engines implement; CLI and MCP server are generated from one source.
-
-**Brain repo is the system of record.** Your knowledge lives in a regular git repo (your "brain repo") as markdown files. GBrain syncs the repo into Postgres for retrieval; deletes in git become soft-deletes in DB. You can publish public subsets, share team mounts, run thin-client setups pointing at a colleague's brain server. Topologies in [`docs/architecture/topologies.md`](docs/architecture/topologies.md).
-
-**Two organizational axes (brain ⊥ source).** A *brain* is a database (your personal brain, a team mount you joined). A *source* is a repo inside that brain (wiki, gstack, an essay, a knowledge base). Routing lives in `.gbrain-source` dotfiles and resolves via a documented 6-tier precedence chain. Full diagrams in [`docs/architecture/brains-and-sources.md`](docs/architecture/brains-and-sources.md).
-
-**Why the graph matters.** Vector search returns chunks that are semantically close. The graph returns chunks that are factually connected. Hybrid search pulls from both; auto-linking on every write keeps the graph fresh. Deep dive: [`docs/architecture/RETRIEVAL.md`](docs/architecture/RETRIEVAL.md).
-
-## Troubleshooting
-
-**`gbrain import` fails with `expected N dimensions, not M`?** Run `gbrain doctor`. It will print the exact `gbrain config set ...` or `gbrain retrieval-upgrade` command to repair the mismatch. You should not need to delete `~/.gbrain`. Fresh `gbrain init --pglite` auto-detects your embedding provider from API keys in your environment: set `OPENAI_API_KEY` (or `ZEROENTROPY_API_KEY` / `VOYAGE_API_KEY`) before running init, or pass `--embedding-model <provider>:<model>` explicitly. With multiple keys set, init fires an interactive picker. In non-TTY contexts (CI, Docker) with no keys, init exits 1 with a paste-ready setup hint; pass `--no-embedding` to defer setup until runtime. See [`docs/integrations/embedding-providers.md`](docs/integrations/embedding-providers.md) for the full provider matrix and [`docs/operations/headless-install.md`](docs/operations/headless-install.md) for Docker/CI sequencing.
-
-**Hourly cron sync keeps timing out on a federated brain?** v0.41.13.0 ships
-two flags + a recommended pattern. Switch your cron to a per-source loop
-with shell `timeout(1)` doing the OS-level kill and gbrain self-terminating
-gracefully half-a-minute earlier:
+### MCP (Claude Code / Cursor / Claude Desktop)
 
 ```bash
-gbrain sync --break-lock --all --max-age 1800
-for src in $(gbrain sources list --json | jq -r '.[].id'); do
-  timeout 600 gbrain sync --source "$src" --timeout 540 || true
-done
+claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
 ```
 
-When `--timeout` fires mid-import, `gbrain sync` exits 0 with status
-`partial` and `last_commit` UNCHANGED — the next run re-walks the same
-diff and `content_hash` short-circuits already-imported files. The
-`--max-age 1800` first command self-heals any wedged-but-alive locks
-left by a hung previous run, using the v98 `last_refreshed_at` semantic
-(NOT `acquired_at`) so healthy long-running holders are safe by
-construction. See the v0.41.13.0 entry in [`CHANGELOG.md`](CHANGELOG.md)
-for the honest scope notes (extract + embed phases run to completion;
-30-min rollout window for `--max-age` post-migration v98; full-sync
-triggers deferred to v0.42+).
+---
 
-**Dream cycle silently losing wiki links on Supabase?** v0.41.19.0 fixes
-the bug class structurally. The engine now self-retries every bulk batch
-write (`addLinksBatch` / `addTimelineEntriesBatch` / `upsertChunks`) on
-Supavisor pooler blips, with a 12s worst-case wait that covers the full
-5-10s circuit-breaker recovery window. `gbrain doctor` surfaces incidents
-via the new `batch_retry_health` check (reads the last 24h of
-`~/.gbrain/audit/batch-retry-YYYY-Www.jsonl`). To tune for an unusually
-slow pooler:
+## Reproduce
 
 ```bash
-# Defaults: 3 retries, base 1s, max 10s, decorrelated jitter.
-# Override per operator without a release:
-export GBRAIN_BULK_MAX_RETRIES=5       # int >= 0; 0 disables retries
-export GBRAIN_BULK_RETRY_BASE_MS=2000  # int > 0
-export GBRAIN_BULK_RETRY_MAX_MS=15000  # int >= base
+pip install rank-bm25 requests python-dotenv google-genai anthropic huggingface_hub
+# .env needs HYDRADB_API_KEY (write access), GEMINI_API_KEY, ANTHROPIC_API_KEY
+
+# The fair relational head-to-head (real gbrain, graph ON) - the headline
+python3 -m bench.relational_v2 --seed-edges --report   # gbrain handed a perfect graph
+python3 -m bench.relational_v2 --report                # gbrain self-extracts from prose
+
+# Architecture cost - deterministic, no keys, offline
+python3 -m bench.architecture
+
+# LongMemEval-S at scale (vs a BM25 baseline)
+python3 -m bench.lme_scale --limit 42 --hydra-wait 120
+
+# LongMemEval oracle, 90 questions (auto-downloads the dataset, checkpoints
+# every question, resumes across free-tier quota walls; --fresh to rescore)
+python3 -m bench.longmemeval --report
+
+# Offline test suite (no keys, no network)
+python3 -m pytest tests/test_bench_harness.py -q
 ```
 
-Bad values surface at `gbrain doctor` startup with a paste-ready fix
-(not at first-retry mid-cycle). PGLite-only installs pay zero cost — the
-retry wrap is engine-level, but PGLite has no pooler so retries never
-fire in practice.
+### Integrity ledger - how we keep it fair
 
-**Dream cycle losing ~150 link rows per run with `'No database
-connection: connect() has not been called'` errors in the log?** v0.41.27.0
-makes the retry layer self-heal on a nulled-out database singleton. A
-new `reconnect` callback on `withRetry` rebuilds the connection between
-attempts; `PostgresEngine.batchRetry` injects `() => this.reconnect()`
-so engine-level batch writes survive a mid-cycle disconnect by something
-else in the same process. Same release: `gbrain capture` no longer trails
-a `'No database connection'` stderr line from a background facts:absorb
-worker firing after CLI exit — the op-dispatch finally block awaits
-`getFactsQueue().drainPending({timeout: 1000})` before
-`engine.disconnect()`. To find which code path is still calling
-disconnect mid-process, run `gbrain doctor --json | jq '.checks[] |
-select(.id=="batch_retry_health")'`; the extended check now surfaces
-24h disconnect-call count and the most-recent caller frame from a new
-`~/.gbrain/audit/db-disconnect-YYYY-Www.jsonl` audit. (Closes #1570.)
+- gbrain runs **graph ON** with its relational arm engaged (`relational:true`); an integrity gate
+  **aborts** if its typed edges are missing or mis-typed, so it is never scored on a broken graph.
+- We also hand gbrain a **100%-correct graph** (its own published seeding method) as a
+  rebuttal-proof control - and HydraDB still wins overall + multi-hop.
+- **Same prose into both systems**; each builds its graph its own way.
+- HydraDB is **hosted → non-deterministic**: quote ranges, not exact decimals. gbrain's side is deterministic.
+- The earlier "wins both corpora" claim was **retired** - it had run gbrain with its graph
+  effectively off. Catching that in our own harness is why these numbers are trustworthy.
+- The LongMemEval oracle harness went through the same treatment in the other direction:
+  **five bugs fixed** (one of which handed the *baseline* a free 100% recall), re-run at n=90,
+  and the resulting **QA loss published** (45.6% vs 56.7%) alongside HydraDB's perfect recall.
+  Fairness cuts both ways or it isn't fairness.
 
-**`gbrain brainstorm` returning `judge_failed: true` with 0 scored
-ideas?** v0.41.21.0 closes the two bugs that caused it. The judge
-hard-coded a 4K-token output cap; for any run past ~40 ideas the call
-truncated mid-JSON and the parser threw. Same release closes a slash-
-form pricing miss: `gbrain brainstorm --judge-model
-anthropic/claude-sonnet-4-6 --max-cost 5` failed with
-`BudgetExhausted reason=no_pricing` because every pricing site only
-matched the colon form. Both shapes work now. No config change, no
-schema migration — `gbrain upgrade` is the whole fix.
+## Layout
 
-**`gbrain reindex --markdown` wiped your auto/dream/signal-detector
-tags?** v0.41.37.0 makes tag reconciliation add-only. Re-import and
-`reindex --markdown` now ADD current frontmatter tags and never delete,
-so enrichment tags written to the DB (auto-tag, dream synthesize,
-signal-detector) survive a re-chunk. The reindex DB-only fallback also
-reconstructs the full markdown (frontmatter + body + timeline) before
-re-chunking, so a page with no on-disk source keeps its frontmatter,
-title, and timeline instead of getting overwritten with empty
-frontmatter. Trade-off: removing a tag from a page's frontmatter no
-longer removes it from the DB on the next sync (frontmatter-tag removal
-needs a provenance column, deferred). (Closes #1621.)
-
-**`gbrain sync` wedges on a large brain (no progress, high CPU)?**
-v0.41.37.0 ships three things. First, name the stalling file:
-
-```bash
-GBRAIN_SYNC_TRACE=1 gbrain sync --no-pull --no-embed --yes
+```
+hydrabrain/        the gbrain-style memory engine on HydraDB
+  client.py        HydraDB REST client (ingest / hybrid recall / graph / delete)
+  engine.py        BrainEngine: capture / ingest_file / sync / ingest_url / search / think /
+                     enrich / briefing / export / graph  (+ brain & source axes)
+  sync.py          bulk incremental ingest (dir/glob, content-hash dedup, manifest)
+  connectors.py    web connectors: articles (stdlib HTML→text) + tweets (oEmbed) + YouTube
+  onboarding.py    first-run key setup (validate + write ~/.hydrabrain/.env)
+  enrich.py        derive summary + tags + entities (Gemini)
+  reports.py       briefing / report synthesis over memory
+  export.py        dump a brain (tenant+source) to Markdown files + manifest.json
+  webapp.py        zero-dep web UI server (stdlib http.server) + JSON API
+  web/index.html   the single-page creator app (add link/note, cited chat)
+  web/setup.html   first-run setup screen (Free-mode vs keys)
+  synth.py         synthesis layer - cited answer + gap analysis (Gemini)
+  cli.py           the hydrabrain CLI (19 cmds)   mcp_server.py   MCP stdio server (8 tools)
+  config.py        env + recall tuning + brain/source defaults (mode=thinking, alpha=1.0)
+bench/
+  relational_v2.py Benchmark #1 - fair relational head-to-head vs real gbrain (graph ON)
+  architecture.py  Benchmark #2 - retrieval-surface size comparison (deterministic, offline)
+  lme_scale.py     Benchmark #3 - LongMemEval-S at scale vs BM25 → lme_scale_results.json
+  longmemeval.py   Benchmark #4 - LongMemEval oracle QA + evidence → longmemeval_report.html
+  hydra_wait.py    indexing-wait + namespace verify/wipe helpers shared by the harnesses
+  gbrain_stack.py  gbrain-style baseline pipeline: dense + BM25 + RRF, NO graph
+  dataset.py       19 pages + 19 gold test cases (dependency-free)
+  run_bench.py     legacy recall@5 / MRR / LLM-judge harness   → report.html
+  data/            LongMemEval splits (oracle auto-downloaded; _s on demand)
+demos/
+  cron-playbook.html        interactive enterprise guide - cron push → HydraDB → agent pull
+  hydrabrain-video/         HyperFrames explainer video (problem → solution, ~78s MP4)
 ```
 
-The last `[sync] begin import: <path>` line with no following completion
-is the file being processed when the hang hit. Second, if you suspect a
-schema-pack `inference.regex` with catastrophic backtracking, complete
-the sync with the pack disabled and re-run extraction later:
+## Next steps (toward the north star)
 
-```bash
-gbrain sync --no-schema-pack --no-pull --no-embed --yes
-```
+1. **LongMemEval-S vs real gbrain** - the `_s` split is run vs a BM25 baseline (38.1% vs 16.7%);
+   next is running it against the real gbrain binary, and growing the relational corpus to 240-doc scale.
+2. **Ingestion connectors** - Instagram saves, YouTube transcripts, article readers →
+   `brain.capture()` / `brain.ingest_file()`.
+3. **Chat UI** over `brain.think()` with streaming + citations.
+4. **Scale test** - 10K+ pages, re-measure recall to confirm the graph holds.
 
-`gbrain schema lint` now warns on the classic nested-quantifier ReDoS
-shapes (`(a+)+`, `(a*)*`, …) in pack regexes, and the runtime caps
-inference-regex input length (override via `GBRAIN_MAX_REGEX_INPUT_CHARS`).
-Third, on a PGLite brain, stop `gbrain serve` before a large sync —
-PGLite is single-writer and a live MCP server contends for the write
-lock. See [`docs/architecture/serve-sync-concurrency.md`](docs/architecture/serve-sync-concurrency.md)
-for the full triage. (Closes #1569.)
+## License & credits
 
-**`gbrain init --migrate-only` / a schema migration fails on Windows
-with `getaddrinfo ENOTFOUND`?** v0.41.37.0 runs the 9 schema-bring-up
-phases in-process instead of spawning a child `gbrain init
---migrate-only` per phase. The spawned child died on
-Windows + bun + Supabase pooler with a DNS-resolution failure even
-though the parent connected fine; running in-process removes the spawn
-entirely. The v0.13.1 grandfather migration that hung 70+ minutes on an
-82K-page PGLite brain is also fixed — it now runs as a chunked bulk SQL
-pass (keyed on the page PK, soft-delete-filtered, source-safe) that
-completes in ~1-2 seconds. (Closes #1605, #1581.)
+MIT - matching [gbrain](https://github.com/garrytan/gbrain), which is also MIT. As a fork, gbrain's original `LICENSE` (© Garry Tan) is preserved at repo root; the `hydrabrain/` and `bench/` additions are likewise MIT © Harnoor Singh. hydrabrain
+is an independent reimplementation: the engine, client, synthesis layer, and benchmarks are
+original code written against [HydraDB](https://hydradb.com); only the *capability surface*
+and CLI command names are modeled on gbrain. Huge respect to **Garry Tan** for gbrain - it's
+the system this one set out to match, and beat, on the merits.
 
-## Docs
-
-- [`docs/INSTALL.md`](docs/INSTALL.md) — every install path, end to end
-- [`docs/what-schemas-unlock.md`](docs/what-schemas-unlock.md) — why schemas matter: 7 killer use cases, the structural argument for typed page kinds, the agent-co-curates pattern (v0.40.7.0)
-- [`docs/schema-author-tutorial.md`](docs/schema-author-tutorial.md) — 5-minute walkthrough: fork the bundled pack, add a custom type, backfill existing pages, prove the wiring via `gbrain whoknows`
-- [`docs/architecture/`](docs/architecture/) — system design, topologies, retrieval theory
-- [`docs/guides/`](docs/guides/) — how-to runbooks (sub-agent routing, minion deployment, skill development, brain-first lookup, idea capture, diligence ingestion)
-- [`docs/integrations/`](docs/integrations/) — connecting external data sources (voice, email, calendar, embedding providers)
-- [`docs/mcp/`](docs/mcp/) — per-client MCP setup (Claude Desktop, Code, Cursor, ChatGPT, Perplexity, Cowork)
-- [`docs/eval/`](docs/eval/) — eval framework, metric glossary, methodology
-- [`docs/ethos/`](docs/ethos/) — philosophy (thin harness, fat skills, markdown as recipes, origin story)
-- [`AGENTS.md`](AGENTS.md) — entry point for non-Claude agents
-- [`CLAUDE.md`](CLAUDE.md) — entry point for Claude Code (deep operating context)
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — contributor guide, test discipline, eval-capture mode
-- [`SECURITY.md`](SECURITY.md) — OAuth threat model, hardening defaults
-
-## Contributing
-
-Run `bun run test` for the fast loop, `bun run verify` for the pre-push gate, `bun run ci:local` to run the full Docker-backed CI stack locally. Detailed test discipline in [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-Community PRs are batched into release waves rather than merged one-by-one — see the "PR wave workflow" section in [`CLAUDE.md`](CLAUDE.md). Contributor attribution stays attached via `Co-Authored-By:` trailers. We credit every accepted contribution in [`CHANGELOG.md`](CHANGELOG.md).
-
-If you find a bug or want a feature: open an issue first. Quick fixes (typo, doc bug, obvious regression) can go straight to a PR. Anything touching schema, retrieval ranking, MCP protocol, or the security boundary needs a design discussion in the issue first.
-
-## License + credit
-
-MIT. I built GBrain to run my OpenClaw and Hermes deployments — the production brain behind my AI agents.
-
-Origin story: [`docs/ethos/ORIGIN.md`](docs/ethos/ORIGIN.md).
-
-Community PR contributors are credited in `CHANGELOG.md` per release. ZeroEntropy ([@zeroentropy](https://zeroentropy.dev)) for the embedding + reranker stack that ships as the default. Voyage AI for the asymmetric-encoding recipe template. Ramp Labs for the search quality improvements lineage.
+<div align="center"><sub>Built to prove a point, honestly. HydraDB gives you gbrain's graph advantage natively - the numbers hold up, and where they don't, we publish that too.</sub></div>
 
 ---
 
@@ -1887,6 +2258,9 @@ Community PR contributors are credited in `CHANGELOG.md` per release. ZeroEntrop
 Source: https://raw.githubusercontent.com/garrytan/gbrain/master/docs/ENGINES.md
 
 # Pluggable Engine Architecture
+
+> **Fork note — context memory = [HydraDB](https://hydradb.com).** This repository is a fork of gbrain. The upstream gbrain source uses pgvector/PGLite as its memory store; for work in **this** fork the context-memory layer is **HydraDB** — see [CONTEXT-MEMORY.md](CONTEXT-MEMORY.md) and the Python `hydrabrain/` package. Do not assume/provision pgvector/PGLite for new work here.
+
 
 ## The idea
 

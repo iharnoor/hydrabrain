@@ -1,0 +1,1919 @@
+{
+  "summary": {
+    "n": 149,
+    "k": 5,
+    "gbrain_edges_sampled": {
+      "built": 37,
+      "correct_type": 17,
+      "gold_expected": 39
+    },
+    "gbrain": {
+      "P@k": 0.16912751677852322,
+      "R@k": 0.5000000000000001,
+      "MRR": 0.3168903803131993
+    },
+    "hydra": {
+      "P@k": 0.28724832214765106,
+      "R@k": 0.8803131991051455,
+      "MRR": 0.8939597315436241
+    },
+    "per_hop": {
+      "1": {
+        "n": 56,
+        "gbrain_R@k": 0.8422619047619049,
+        "hydra_R@k": 0.9136904761904763,
+        "gbrain_P@k": 0.30714285714285694,
+        "hydra_P@k": 0.3321428571428569
+      },
+      "2": {
+        "n": 93,
+        "gbrain_R@k": 0.2939068100358423,
+        "hydra_R@k": 0.8602150537634409,
+        "gbrain_P@k": 0.08602150537634412,
+        "hydra_P@k": 0.26021505376344056
+      }
+    }
+  },
+  "rows": [
+    {
+      "query": "who invested in company-00",
+      "relevant": [
+        "person-00",
+        "person-11"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who invested in company-01",
+      "relevant": [
+        "person-05",
+        "person-16",
+        "person-27"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 0.6666666666666666,
+      "hydra_p": 0.4,
+      "hydra_r": 0.6666666666666666
+    },
+    {
+      "query": "who invested in company-02",
+      "relevant": [
+        "person-10",
+        "person-21"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "who invested in company-03",
+      "relevant": [
+        "person-15",
+        "person-26",
+        "person-03"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 0.6666666666666666,
+      "hydra_p": 0.4,
+      "hydra_r": 0.6666666666666666
+    },
+    {
+      "query": "who invested in company-04",
+      "relevant": [
+        "person-20",
+        "fund-b"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who invested in company-05",
+      "relevant": [
+        "person-25",
+        "person-02",
+        "person-13"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 0.6666666666666666,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who invested in company-06",
+      "relevant": [
+        "fund-a",
+        "person-07"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 0.5
+    },
+    {
+      "query": "who invested in company-07",
+      "relevant": [
+        "person-01",
+        "person-12",
+        "person-23"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 0.6666666666666666,
+      "hydra_p": 0.4,
+      "hydra_r": 0.6666666666666666
+    },
+    {
+      "query": "who invested in company-08",
+      "relevant": [
+        "person-06",
+        "person-17"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who invested in company-09",
+      "relevant": [
+        "person-11",
+        "person-22",
+        "fund-d"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.3333333333333333,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who invested in company-10",
+      "relevant": [
+        "person-16",
+        "person-27"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.2,
+      "hydra_r": 0.5
+    },
+    {
+      "query": "who invested in company-11",
+      "relevant": [
+        "person-21",
+        "fund-c",
+        "person-09"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.6,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who invested in company-12",
+      "relevant": [
+        "person-26",
+        "person-03"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who invested in company-13",
+      "relevant": [
+        "fund-b",
+        "person-08",
+        "person-19"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 0.6666666666666666,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who invested in company-14",
+      "relevant": [
+        "person-02",
+        "person-13"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who invested in company-15",
+      "relevant": [
+        "person-07",
+        "person-18",
+        "person-29"
+      ],
+      "rel": "invested_in",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 0.6666666666666666,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-00",
+      "relevant": [
+        "person-01",
+        "person-06"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-01",
+      "relevant": [
+        "person-04",
+        "person-09",
+        "person-14"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.6,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-02",
+      "relevant": [
+        "person-07",
+        "person-12"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.2,
+      "hydra_r": 0.5
+    },
+    {
+      "query": "who works at company-03",
+      "relevant": [
+        "person-10",
+        "person-15",
+        "person-20"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.6,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-04",
+      "relevant": [
+        "person-13",
+        "person-18"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-05",
+      "relevant": [
+        "person-16",
+        "person-21",
+        "person-26"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 0.6666666666666666,
+      "hydra_p": 0.4,
+      "hydra_r": 0.6666666666666666
+    },
+    {
+      "query": "who works at company-06",
+      "relevant": [
+        "person-19",
+        "person-24"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-07",
+      "relevant": [
+        "person-22",
+        "person-27",
+        "person-02"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.6,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-08",
+      "relevant": [
+        "person-25",
+        "person-00"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-09",
+      "relevant": [
+        "person-28",
+        "person-08"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-10",
+      "relevant": [
+        "person-01",
+        "person-06"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-11",
+      "relevant": [
+        "person-04",
+        "person-09",
+        "person-14"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.6,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-12",
+      "relevant": [
+        "person-07",
+        "person-12"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-13",
+      "relevant": [
+        "person-10",
+        "person-15",
+        "person-20"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.6,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-14",
+      "relevant": [
+        "person-13",
+        "person-18"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who works at company-15",
+      "relevant": [
+        "person-16",
+        "person-21",
+        "person-26"
+      ],
+      "rel": "works_at",
+      "hop": 1,
+      "gbrain_p": 0.4,
+      "gbrain_r": 0.6666666666666666,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-00",
+      "relevant": [
+        "person-00"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-01",
+      "relevant": [
+        "person-07"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-02",
+      "relevant": [
+        "person-14"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-03",
+      "relevant": [
+        "person-21"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-04",
+      "relevant": [
+        "person-28"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-05",
+      "relevant": [
+        "person-05"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-06",
+      "relevant": [
+        "person-12"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "who founded company-07",
+      "relevant": [
+        "person-19"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-08",
+      "relevant": [
+        "person-26"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-09",
+      "relevant": [
+        "person-03"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-10",
+      "relevant": [
+        "person-10"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-11",
+      "relevant": [
+        "person-17"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-12",
+      "relevant": [
+        "person-24"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-13",
+      "relevant": [
+        "person-01"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-14",
+      "relevant": [
+        "person-08"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who founded company-15",
+      "relevant": [
+        "person-15"
+      ],
+      "rel": "founded",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who advises company-00",
+      "relevant": [
+        "person-02"
+      ],
+      "rel": "advises",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who advises company-02",
+      "relevant": [
+        "person-28"
+      ],
+      "rel": "advises",
+      "hop": 1,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who advises company-04",
+      "relevant": [
+        "person-24"
+      ],
+      "rel": "advises",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who advises company-06",
+      "relevant": [
+        "person-20"
+      ],
+      "rel": "advises",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who advises company-08",
+      "relevant": [
+        "person-16"
+      ],
+      "rel": "advises",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who advises company-10",
+      "relevant": [
+        "person-12"
+      ],
+      "rel": "advises",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who advises company-12",
+      "relevant": [
+        "person-08"
+      ],
+      "rel": "advises",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "who advises company-14",
+      "relevant": [
+        "person-04"
+      ],
+      "rel": "advises",
+      "hop": 1,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-00 and company-05",
+      "relevant": [
+        "person-02"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-00 and company-07",
+      "relevant": [
+        "person-01",
+        "person-02"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-00 and company-08",
+      "relevant": [
+        "person-00",
+        "person-06"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-00 and company-09",
+      "relevant": [
+        "person-11"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-00 and company-10",
+      "relevant": [
+        "person-01",
+        "person-06"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-00 and company-13",
+      "relevant": [
+        "person-01"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-00 and company-14",
+      "relevant": [
+        "person-02"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-02",
+      "relevant": [
+        "person-07",
+        "person-14"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-05",
+      "relevant": [
+        "person-05",
+        "person-16"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-06",
+      "relevant": [
+        "person-07"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-07",
+      "relevant": [
+        "person-27"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-08",
+      "relevant": [
+        "person-16"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-10",
+      "relevant": [
+        "person-16",
+        "person-27"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-11",
+      "relevant": [
+        "person-04",
+        "person-09",
+        "person-14"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.3333333333333333,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-12",
+      "relevant": [
+        "person-07"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-14",
+      "relevant": [
+        "person-04"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-01 and company-15",
+      "relevant": [
+        "person-07",
+        "person-16"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-03",
+      "relevant": [
+        "person-10",
+        "person-21"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-04",
+      "relevant": [
+        "person-28"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-05",
+      "relevant": [
+        "person-21"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-06",
+      "relevant": [
+        "person-07",
+        "person-12"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-07",
+      "relevant": [
+        "person-12"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-09",
+      "relevant": [
+        "person-28"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-10",
+      "relevant": [
+        "person-10",
+        "person-12"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-11",
+      "relevant": [
+        "person-14",
+        "person-21"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-12",
+      "relevant": [
+        "person-07",
+        "person-12"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-13",
+      "relevant": [
+        "person-10"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-02 and company-15",
+      "relevant": [
+        "person-07",
+        "person-21"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-04",
+      "relevant": [
+        "person-20"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-05",
+      "relevant": [
+        "person-21",
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-06",
+      "relevant": [
+        "person-20"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-08",
+      "relevant": [
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-09",
+      "relevant": [
+        "person-03"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-10",
+      "relevant": [
+        "person-10"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-11",
+      "relevant": [
+        "person-21"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-12",
+      "relevant": [
+        "person-03",
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-13",
+      "relevant": [
+        "person-10",
+        "person-15",
+        "person-20"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-03 and company-15",
+      "relevant": [
+        "person-15",
+        "person-21",
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.3333333333333333,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-04 and company-05",
+      "relevant": [
+        "person-13"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-04 and company-06",
+      "relevant": [
+        "person-20",
+        "person-24"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-04 and company-09",
+      "relevant": [
+        "person-28"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-04 and company-12",
+      "relevant": [
+        "person-24"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-04 and company-13",
+      "relevant": [
+        "fund-b",
+        "person-20"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-04 and company-14",
+      "relevant": [
+        "person-13",
+        "person-18"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-04 and company-15",
+      "relevant": [
+        "person-18"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-05 and company-07",
+      "relevant": [
+        "person-02"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-05 and company-08",
+      "relevant": [
+        "person-16",
+        "person-25",
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-05 and company-10",
+      "relevant": [
+        "person-16"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-05 and company-11",
+      "relevant": [
+        "person-21"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-05 and company-12",
+      "relevant": [
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-05 and company-14",
+      "relevant": [
+        "person-02",
+        "person-13"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-05 and company-15",
+      "relevant": [
+        "person-16",
+        "person-21",
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-06 and company-07",
+      "relevant": [
+        "person-12",
+        "person-19"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-06 and company-10",
+      "relevant": [
+        "person-12"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-06 and company-12",
+      "relevant": [
+        "person-07",
+        "person-12",
+        "person-24"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-06 and company-13",
+      "relevant": [
+        "person-19",
+        "person-20"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 0.5,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-06 and company-15",
+      "relevant": [
+        "person-07"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-07 and company-09",
+      "relevant": [
+        "person-22"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-07 and company-10",
+      "relevant": [
+        "person-01",
+        "person-12",
+        "person-27"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.4,
+      "gbrain_r": 0.6666666666666666,
+      "hydra_p": 0.6,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-07 and company-12",
+      "relevant": [
+        "person-12"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-07 and company-13",
+      "relevant": [
+        "person-01",
+        "person-19"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.4,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-07 and company-14",
+      "relevant": [
+        "person-02"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-08 and company-10",
+      "relevant": [
+        "person-06",
+        "person-16"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-08 and company-11",
+      "relevant": [
+        "person-17"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-08 and company-12",
+      "relevant": [
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-08 and company-15",
+      "relevant": [
+        "person-16",
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-09 and company-12",
+      "relevant": [
+        "person-03",
+        "person-08"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-09 and company-13",
+      "relevant": [
+        "person-08"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-09 and company-14",
+      "relevant": [
+        "person-08"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-10 and company-12",
+      "relevant": [
+        "person-12"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-10 and company-13",
+      "relevant": [
+        "person-01",
+        "person-10"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-10 and company-15",
+      "relevant": [
+        "person-16"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-11 and company-14",
+      "relevant": [
+        "person-04"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-11 and company-15",
+      "relevant": [
+        "person-21"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-12 and company-13",
+      "relevant": [
+        "person-08"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-12 and company-14",
+      "relevant": [
+        "person-08"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-12 and company-15",
+      "relevant": [
+        "person-07",
+        "person-26"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.4,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-13 and company-14",
+      "relevant": [
+        "person-08"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-13 and company-15",
+      "relevant": [
+        "person-15"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what connects company-14 and company-15",
+      "relevant": [
+        "person-18"
+      ],
+      "rel": "connects",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.2,
+      "hydra_r": 1.0
+    },
+    {
+      "query": "what companies did the founder of company-00 invest in",
+      "relevant": [
+        "company-00"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.2,
+      "gbrain_r": 1.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-01 invest in",
+      "relevant": [
+        "company-06",
+        "company-15"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-03 invest in",
+      "relevant": [
+        "company-02",
+        "company-11"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-05 invest in",
+      "relevant": [
+        "company-01"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-06 invest in",
+      "relevant": [
+        "company-07"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-07 invest in",
+      "relevant": [
+        "company-13"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-08 invest in",
+      "relevant": [
+        "company-03",
+        "company-12"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-09 invest in",
+      "relevant": [
+        "company-03",
+        "company-12"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-10 invest in",
+      "relevant": [
+        "company-02"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-11 invest in",
+      "relevant": [
+        "company-08"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-13 invest in",
+      "relevant": [
+        "company-07"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-14 invest in",
+      "relevant": [
+        "company-13"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    },
+    {
+      "query": "what companies did the founder of company-15 invest in",
+      "relevant": [
+        "company-03"
+      ],
+      "rel": "founder_invest",
+      "hop": 2,
+      "gbrain_p": 0.0,
+      "gbrain_r": 0.0,
+      "hydra_p": 0.0,
+      "hydra_r": 0.0
+    }
+  ]
+}

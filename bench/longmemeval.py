@@ -18,11 +18,22 @@ How the comparison is kept fair and isolated:
   • One memory unit per session (dated transcript), identical for both systems.
   • Two metrics:
       evidence recall@k — did top-k retrieval include a gold answer session?
-      QA accuracy       — LLM-as-judge (Gemini) grades the generated answer,
-                          with abstention handling for `_abs` questions.
+      QA accuracy       — LLM-as-judge (Claude, shared with lme_scale) grades
+                          the generated answer, with abstention handling for
+                          `_abs` questions.
+
+Fairness (fixed after review — each was silently penalizing one side):
+  • HydraDB indexing is ASYNC: the harness now actively polls each namespace
+    until its row count settles (bench/hydra_wait.py) instead of a blind sleep
+    that raced the background graph wiring.
+  • The baseline now CHUNKS sessions the way real gbrain does (300w/50w/6000c,
+    gbrain_stack.chunk_text) — unchunked whole-session units gave it fewer
+    candidates than top-k on the oracle split, winning recall by default.
+  • Default sample is 90 questions (~15/type) — at 3/type one flipped answer
+    swings a category ~33pp, so per-type gaps were sampling noise.
 
 Usage:
-  python3 -m bench.longmemeval --limit 15
+  python3 -m bench.longmemeval                              # 90 qs, balanced
   python3 -m bench.longmemeval --limit 30 --types temporal-reasoning,multi-session
   python3 -m bench.longmemeval --data bench/data/longmemeval_s.json --limit 50
   python3 -m bench.longmemeval --no-hydra --limit 50        # baseline only (offline)
@@ -32,16 +43,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
 from hydrabrain import config
 from hydrabrain.client import HydraDBClient
 from .gbrain_stack import GBrainStack
+from .hydra_wait import wait_for_indexing, wait_for_retrievable
 
 DATA_DEFAULT = Path(__file__).resolve().parent / "data" / "longmemeval_oracle.json"
 RESULTS_PATH = Path(__file__).resolve().parent / "longmemeval_results.json"
+CHECKPOINT_PATH = Path(__file__).resolve().parent / "longmemeval_checkpoint.jsonl"
 TOP_K = 5
 
 
@@ -72,59 +84,59 @@ def is_evidence(retrieved_sids: list[str], gold_sids: list[str]) -> bool:
 
 
 # ── LLM answer + judge ─────────────────────────────────────────────
-def _genai():
-    from hydrabrain import llm
-    return llm.client()  # hard request timeout — never wedge on a hung Gemini socket
+# Claude-based, shared with bench/lme_scale.py so both LongMemEval harnesses
+# use the same answerer + judge. (Was Gemini; gemini-2.5-flash was retired by
+# Google mid-2026 and the replacement tier is unreliable under load. The
+# answerer is shared by both systems, so this doesn't affect fairness.)
+from .lme_scale import generate_answer, judge_answer
 
 
-def generate_answer(gc, question: str, contexts: list[str]) -> str:
-    if not contexts:
-        return "I don't know."
-    ctx = "\n\n---\n\n".join(contexts[:TOP_K])
-    resp = gc.models.generate_content(
-        model=config.GEMINI_CHAT_MODEL,
-        contents=(
-            "You are a personal assistant answering from the user's chat history. "
-            "Use ONLY the retrieved sessions below. Answer concisely. If the answer is "
-            "not present, say 'I don't know'.\n\n"
-            f"Question: {question}\n\nRetrieved sessions:\n{ctx}"
-        ),
-    )
-    return (resp.text or "").strip()
-
-
-def judge(gc, question: str, gold: str, answer: str, qtype: str, abstain: bool) -> bool:
+def judge(question: str, gold: str, answer: str, qtype: str, abstain: bool,
+          model: str) -> bool:
     if abstain:
         # Correct iff the model declines to answer / says it doesn't know.
         low = answer.lower()
         return any(p in low for p in ["i don't know", "i do not know", "not sure",
                                       "no information", "cannot find", "couldn't find",
                                       "not mentioned", "don't have"])
-    resp = gc.models.generate_content(
-        model=config.GEMINI_CHAT_MODEL,
-        contents=(
-            f"You are grading a memory assistant on a '{qtype}' question. Is the model's "
-            "answer correct — does it contain the key facts of the gold answer? Be strict "
-            "but accept paraphrases and extra correct detail. Respond with EXACTLY 'YES' or 'NO'.\n\n"
-            f"Question: {question}\nGold answer: {gold}\nModel answer: {answer}"
-        ),
-    )
-    return (resp.text or "").strip().upper().startswith("YES")
+    return judge_answer(question, gold, answer, qtype, model)
 
 
 # ── runners ────────────────────────────────────────────────────────
 def run_hydra(client: HydraDBClient, q: dict, units: list[tuple[str, str]],
               wait: int) -> tuple[list[str], list[str]]:
-    """Ingest units under sub_tenant=question_id, wait, retrieve. Returns (texts, sids)."""
+    """Ingest units under sub_tenant=question_id, wait for indexing to actually
+    settle (active poll, not a blind sleep), retrieve. Returns (texts, sids)."""
     qid = q["question_id"]
-    text_by_sid = {sid: txt for sid, txt in units}
+    # Guard against cross-run namespace pollution: other harnesses (lme_scale,
+    # earlier runs) reuse the same question_ids as sub_tenant ids on the same
+    # tenant, leaving stale sessions that silently join this run's haystack.
+    # Don't wipe-and-reuse: a wiped namespace can end up search-dead (rows
+    # store but never index — observed once in 35 wipes; same content in a
+    # fresh namespace indexes fine). Walk to the first EMPTY namespace instead.
+    for ns in [qid] + [f"{qid}-r{i}" for i in range(2, 10)]:
+        if client.count(sub_tenant_id=ns) == 0:
+            break
+    else:
+        raise RuntimeError(f"{qid}: no empty namespace found after 9 suffixes")
+    if ns != qid:
+        print(f"    namespace {qid} dirty — using fresh {ns}")
     for sid, txt in units:
-        client.add_memory(txt, infer=True, sub_tenant_id=qid)
-    time.sleep(wait)
-    chunks = client.recall_preferences(
-        q["question"], max_results=TOP_K, graph_context=True,
-        mode=config.HYDRA_RECALL_MODE, alpha=config.HYDRA_RECALL_ALPHA,
-        sub_tenant_id=qid,
+        client.add_memory(txt, infer=True, sub_tenant_id=ns)
+    # HydraDB indexes/graph-wires asynchronously after add_memory returns.
+    # Two-stage readiness check (a blind sleep raced this; so did row-count
+    # alone — rows appear in list_content before they are retrievable):
+    #  1. row count reaches the ingested unit count and stops changing;
+    #  2. the actual query returns a non-empty, stable result set.
+    seen = wait_for_indexing(client, sub_tenant_id=ns, min_count=len(units),
+                             timeout=wait)
+    if seen < len(units):
+        print(f"    warn: {ns} indexing timeout — {seen}/{len(units)} units visible")
+    chunks = wait_for_retrievable(
+        client, q["question"], ns,
+        dict(max_results=TOP_K, graph_context=True,
+             mode=config.HYDRA_RECALL_MODE, alpha=config.HYDRA_RECALL_ALPHA),
+        timeout=wait,
     )
     texts = [c.text for c in chunks]
     # Map each retrieved chunk back to its source session id. HydraDB re-chunks
@@ -148,16 +160,17 @@ def _best_session(chunk: str, units: list[tuple[str, str]]) -> str:
 
 def run_baseline(q: dict, units: list[tuple[str, str]]) -> tuple[list[str], list[str]]:
     base = GBrainStack()
-    base.docs = [txt for _, txt in units]
-    # build indexes
-    from .gbrain_stack import _embed, _tok
-    from rank_bm25 import BM25Okapi
-    base._vecs = _embed(base.docs)
-    base._bm25 = BM25Okapi([_tok(d) for d in base.docs])
+    # ingest() chunks each session the way real gbrain does (300w/50w/6000c).
+    # Previously each whole session was one unsplit doc — on the oracle split
+    # (1-2 sessions/question, top-k=5) the baseline returned its entire corpus
+    # and "won" recall by default. Chunking gives it the same real search
+    # problem HydraDB solves.
+    base.ingest([txt for _, txt in units])
     hits = base.search(q["question"], k=TOP_K)
     texts = [h.text for h in hits]
-    sid_by_text = {txt: sid for sid, txt in units}
-    sids = [sid_by_text.get(t, "") for t in texts]
+    # Chunks no longer exact-match a whole session's text — map each result
+    # back to its source session by overlap, same as HydraDB's results.
+    sids = [_best_session(t, units) for t in texts]
     return texts, sids
 
 
@@ -170,14 +183,45 @@ def main(argv=None):
         pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=str(DATA_DEFAULT))
-    ap.add_argument("--limit", type=int, default=15)
+    ap.add_argument("--limit", type=int, default=90,
+                    help="questions to sample, balanced across the 6 types (default 90 = "
+                         "~15/type; at 3/type a single flipped answer swings a category ~33pp)")
     ap.add_argument("--types", default="", help="comma-separated question_type filter")
-    ap.add_argument("--hydra-wait", type=int, default=60, help="seconds to wait for async indexing per question (HydraDB graph wiring; too low understates HydraDB)")
+    ap.add_argument("--hydra-wait", type=int, default=180,
+                    help="TIMEOUT in seconds for HydraDB's async indexing per question — "
+                         "the harness polls the namespace and proceeds as soon as the count "
+                         "settles, so this is a safety cap, not a fixed sleep")
     ap.add_argument("--no-hydra", action="store_true")
+    ap.add_argument("--judge-model", default="claude-haiku-4-5-20251001",
+                    help="Claude model id for answer generation + judging")
+    ap.add_argument("--fresh", action="store_true",
+                    help="ignore the checkpoint and rescore every question (default: "
+                         "resume — completed questions are loaded from the checkpoint, "
+                         "so a quota/API death doesn't lose finished work)")
     ap.add_argument("--report", action="store_true")
     args = ap.parse_args(argv or [])
 
-    data = json.loads(Path(args.data).read_text())
+    data_path = Path(args.data)
+    if not data_path.exists() and data_path == DATA_DEFAULT:
+        # Auto-download the oracle split (~15 MB) so the benchmark reproduces
+        # from a fresh clone with one command.
+        print(f"  {data_path.name} not found — downloading from Hugging Face…")
+        data_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            from huggingface_hub import hf_hub_download
+            got = hf_hub_download(repo_id="xiaowu0162/longmemeval-cleaned",
+                                  filename="longmemeval_oracle.json",
+                                  repo_type="dataset",
+                                  local_dir=str(data_path.parent))
+            print(f"  downloaded → {got}")
+        except Exception as e:
+            raise SystemExit(
+                f"auto-download failed ({repr(e)[:80]}). Fetch it manually:\n"
+                "  pip install huggingface_hub\n"
+                "  hf download xiaowu0162/longmemeval-cleaned longmemeval_oracle.json "
+                "--repo-type dataset --local-dir bench/data")
+
+    data = json.loads(data_path.read_text())
     if args.types:
         keep = set(args.types.split(","))
         data = [q for q in data if q.get("question_type") in keep]
@@ -203,22 +247,55 @@ def main(argv=None):
     if not args.no_hydra:
         client = HydraDBClient(api_key=config.require("HYDRADB_API_KEY")).use_tenant(config.DEFAULT_TENANT)
 
-    gc = _genai()
+    # Resume from checkpoint: every completed question is one JSONL line, so a
+    # quota exhaustion / API death mid-run doesn't lose (or re-pay for) finished
+    # work. --fresh starts over. The first line is a config fingerprint —
+    # resuming under a different data file / judge / --no-hydra would silently
+    # merge rows scored under different conditions into one results file.
+    run_config = {"_config": True, "data": Path(args.data).name,
+                  "judge_model": args.judge_model, "no_hydra": bool(args.no_hydra),
+                  "types": args.types, "top_k": TOP_K}
+    done: dict[str, dict] = {}
+    if CHECKPOINT_PATH.exists():
+        if args.fresh:
+            CHECKPOINT_PATH.unlink()
+        else:
+            lines = [l for l in CHECKPOINT_PATH.read_text().splitlines() if l.strip()]
+            if lines:
+                head = json.loads(lines[0])
+                if head.get("_config"):
+                    if head != run_config:
+                        raise SystemExit(
+                            f"checkpoint {CHECKPOINT_PATH.name} was written under a "
+                            f"different configuration:\n  checkpoint: {head}\n  "
+                            f"current:    {run_config}\nRe-run with --fresh to "
+                            f"discard it, or restore the original flags to resume.")
+                    lines = lines[1:]
+                for line in lines:
+                    r = json.loads(line)
+                    done[r["question_id"]] = r
+            if done:
+                print(f"  resuming: {len(done)} questions already scored in "
+                      f"{CHECKPOINT_PATH.name} (use --fresh to rescore)")
+    if not CHECKPOINT_PATH.exists():
+        CHECKPOINT_PATH.write_text(json.dumps(run_config) + "\n")
+
     rows = []
-    agg = {"h_rec": 0, "b_rec": 0, "h_qa": 0, "b_qa": 0}
-    per_type = defaultdict(lambda: {"n": 0, "h_qa": 0, "b_qa": 0})
 
     for i, q in enumerate(sample, 1):
         qid = q["question_id"]
         qtype = q["question_type"]
         abstain = qid.endswith("_abs")
+        if qid in done:
+            rows.append(done[qid])
+            continue
         units = build_units(q)
         print(f"  [{i:2}/{len(sample)}] {qtype[:22]:22} ingest {len(units)} sessions…")
 
         b_texts, b_sids = run_baseline(q, units)
         b_rec = is_evidence(b_sids, q["answer_session_ids"])
-        b_ans = generate_answer(gc, q["question"], b_texts)
-        b_qa = judge(gc, q["question"], q["answer"], b_ans, qtype, abstain)
+        b_ans = generate_answer(b_texts, q["question"], args.judge_model)
+        b_qa = judge(q["question"], q["answer"], b_ans, qtype, abstain, args.judge_model)
 
         h_rec = h_qa = False
         h_ans = ""
@@ -226,31 +303,51 @@ def main(argv=None):
             try:
                 h_texts, h_sids = run_hydra(client, q, units, args.hydra_wait)
                 h_rec = is_evidence(h_sids, q["answer_session_ids"])
-                h_ans = generate_answer(gc, q["question"], h_texts)
-                h_qa = judge(gc, q["question"], q["answer"], h_ans, qtype, abstain)
+                h_ans = generate_answer(h_texts, q["question"], args.judge_model)
+                h_qa = judge(q["question"], q["answer"], h_ans, qtype, abstain, args.judge_model)
             except Exception as e:
                 print(f"    HydraDB error on {qid}: {repr(e)[:80]}")
 
-        agg["b_rec"] += b_rec; agg["b_qa"] += b_qa
-        agg["h_rec"] += h_rec; agg["h_qa"] += h_qa
-        per_type[qtype]["n"] += 1
-        per_type[qtype]["h_qa"] += h_qa; per_type[qtype]["b_qa"] += b_qa
-
-        rows.append({"question_id": qid, "type": qtype, "abstain": abstain,
-                     "question": q["question"], "gold": q["answer"],
-                     "hydra_recall": h_rec, "base_recall": b_rec,
-                     "hydra_qa": h_qa, "base_qa": b_qa,
-                     "hydra_answer": h_ans, "base_answer": b_ans})
+        row = {"question_id": qid, "type": qtype, "abstain": abstain,
+               "question": q["question"], "gold": q["answer"],
+               "hydra_recall": h_rec, "base_recall": b_rec,
+               "hydra_qa": h_qa, "base_qa": b_qa,
+               "hydra_answer": h_ans, "base_answer": b_ans}
+        rows.append(row)
+        with CHECKPOINT_PATH.open("a") as f:
+            f.write(json.dumps(row) + "\n")
         print(f"  [{i:2}/{len(sample)}] {qtype[:22]:22} "
               f"QA H={'Y' if h_qa else '.'} B={'Y' if b_qa else '.'}  "
               f"evid H={'Y' if h_rec else '.'} B={'Y' if b_rec else '.'}")
 
-    n = len(sample)
+    # Aggregate from rows (fresh + checkpoint-loaded alike).
+    n = len(rows)
+    agg = {"h_rec": sum(r["hydra_recall"] for r in rows),
+           "b_rec": sum(r["base_recall"] for r in rows),
+           "h_qa": sum(r["hydra_qa"] for r in rows),
+           "b_qa": sum(r["base_qa"] for r in rows)}
+    per_type = defaultdict(lambda: {"n": 0, "h_qa": 0, "b_qa": 0})
+    for r in rows:
+        pt = per_type[r["type"]]
+        pt["n"] += 1; pt["h_qa"] += r["hydra_qa"]; pt["b_qa"] += r["base_qa"]
+
+    # Surface silently-swallowed LLM failures: an answer of "[error: ...]" was
+    # scored (judged wrong) — a run with many of these is measuring API health,
+    # not memory quality, and must not be quoted as a benchmark result.
+    answer_errors = sum(1 for r in rows
+                        for a in (r["hydra_answer"], r["base_answer"])
+                        if a.startswith("[error:"))
     summary = {
         "n": n, "data": Path(args.data).name, "top_k": TOP_K,
+        "judge_model": args.judge_model, "hydra_wait_timeout": args.hydra_wait,
+        "baseline_chunked": True,  # 300w/50w/6000c parity with real gbrain
+        "answer_errors": answer_errors,
         "base_qa_acc": agg["b_qa"] / n, "base_evidence_recall": agg["b_rec"] / n,
-        "type_mix": dict(Counter(q["question_type"] for q in sample)),
+        "type_mix": dict(Counter(r["type"] for r in rows)),
     }
+    if answer_errors:
+        print(f"\n  ⚠ {answer_errors} answers were LLM-call errors scored as wrong — "
+              f"treat QA accuracy with suspicion (see rows with '[error:').")
     if client is not None:
         summary.update({"hydra_qa_acc": agg["h_qa"] / n,
                         "hydra_evidence_recall": agg["h_rec"] / n})
@@ -260,6 +357,12 @@ def main(argv=None):
 
     out = {"summary": summary, "rows": rows}
     RESULTS_PATH.write_text(json.dumps(out, indent=2))
+    # Remove the checkpoint only when every checkpointed row was banked into
+    # this results file — a re-run with a smaller --limit must not delete rows
+    # (paid LLM work) for questions outside the current sample.
+    banked = {r["question_id"] for r in rows}
+    if n >= len(sample) and all(qid in banked for qid in done):
+        CHECKPOINT_PATH.unlink(missing_ok=True)
 
     print("\n" + "=" * 70)
     print("  LONGMEMEVAL RESULTS")
