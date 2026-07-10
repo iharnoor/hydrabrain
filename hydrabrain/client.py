@@ -175,41 +175,66 @@ class HydraDBClient:
             rows.extend(batch)
             if len(batch) < page_size:
                 break
+        else:
+            # Every page came back full — results are truncated at the
+            # max_pages*page_size ceiling. Don't let callers (count, wipe)
+            # treat a truncated listing as complete.
+            import warnings
+            warnings.warn(f"list_all({kind}): truncated at {len(rows)} rows "
+                          f"(max_pages={max_pages}) — increase max_pages for a "
+                          f"complete listing", stacklevel=2)
         return rows
 
     def count(self, sub_tenant_id: str = "") -> int:
+        # Page through everything (list_content alone caps at one page of 50 —
+        # counts would silently saturate on large namespaces). Raises if ANY
+        # kind fails: a partial total (possibly 0) on a transient error would
+        # let callers mistake a dirty namespace for an empty one.
         total = 0
         for kind in ("memory", "knowledge"):
             try:
-                data = self.list_content(kind=kind, sub_tenant_id=sub_tenant_id)
-                total += len(data.get("user_memories", []) or data.get("sources", []) or [])
-            except Exception:
-                pass
+                total += len(self.list_all(kind=kind, sub_tenant_id=sub_tenant_id))
+            except Exception as e:
+                raise RuntimeError(f"count(): '{kind}' listing failed — cannot "
+                                   f"distinguish empty from unreachable ({e!r})") from e
         return total
 
-    def delete_memory(self, memory_id: str) -> dict:
-        resp = self._session.delete(
-            self._url(f"/memories/delete_memory?tenant_id={self.tenant_id}&memory_id={memory_id}"),
-            timeout=(10, 30),
-        )
+    def delete_memory(self, memory_id: str, sub_tenant_id: str = "") -> dict:
+        # sub_tenant_id is REQUIRED for memories living in a sub-tenant
+        # namespace — without it the API returns HTTP 200 with
+        # {"success": false} and deletes nothing (a silent no-op). Callers
+        # should check the returned body's `success` field.
+        params = {"tenant_id": self.tenant_id, "memory_id": memory_id}
+        if sub_tenant_id:
+            params["sub_tenant_id"] = sub_tenant_id
+        # params= percent-encodes values — ids containing &/=/# can't smuggle
+        # or truncate query parameters.
+        resp = self._session.delete(self._url("/memories/delete_memory"),
+                                    params=params, timeout=(10, 30))
         resp.raise_for_status()
         return resp.json()
 
     def wipe(self) -> int:
-        """Delete everything in the current tenant. Returns count removed."""
+        """Delete everything in the current tenant. Returns count removed.
+        Sweeps both content kinds; note sub-tenant rows are not visible to a
+        tenant-level listing — wipe those per-namespace (see
+        bench/hydra_wait.wipe_namespace)."""
         removed = 0
-        for _ in range(20):
-            data = self.list_content(kind="memory")
-            sources = data.get("user_memories", []) or data.get("sources", [])
-            if not sources:
-                break
-            for s in sources:
-                sid = s.get("memory_id") or s.get("source_id") or ""
-                if sid:
-                    try:
-                        self.delete_memory(sid)
-                        removed += 1
-                    except Exception:
-                        pass
-            time.sleep(1)
+        for kind in ("memory", "knowledge"):
+            for _ in range(20):
+                data = self.list_content(kind=kind)
+                sources = data.get("user_memories", []) or data.get("sources", [])
+                if not sources:
+                    break
+                for s in sources:
+                    sid = s.get("memory_id") or s.get("source_id") or ""
+                    if sid:
+                        try:
+                            resp = self.delete_memory(sid)
+                            # The API can 200 with success:false (silent no-op)
+                            # — only count deletes that actually landed.
+                            removed += bool(resp.get("success") or resp.get("user_memory_deleted"))
+                        except Exception:
+                            pass
+                time.sleep(1)
         return removed

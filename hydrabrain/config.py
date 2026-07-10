@@ -69,7 +69,7 @@ HYDRA_RECALL_MODE = os.getenv("HYDRA_RECALL_MODE", "thinking")
 HYDRA_RECALL_ALPHA = float(os.getenv("HYDRA_RECALL_ALPHA", "1.0"))
 
 # Models
-GEMINI_CHAT_MODEL = os.getenv("HYDRABRAIN_CHAT_MODEL", "gemini-2.5-flash")
+GEMINI_CHAT_MODEL = os.getenv("HYDRABRAIN_CHAT_MODEL", "gemini-3.5-flash")  # 2.5-flash retired by Google (404s as of 2026-07)
 GEMINI_EMBED_MODEL = os.getenv("HYDRABRAIN_EMBED_MODEL", "gemini-embedding-001")
 ANTHROPIC_CHAT_MODEL = os.getenv("HYDRABRAIN_ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
