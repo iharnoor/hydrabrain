@@ -14,7 +14,7 @@
 
 [![relational R@5](https://img.shields.io/badge/relational%20R%405-~88%25_vs_~77%25-2dd4bf?style=flat-square)](#-the-benchmark-the-fair-relational-head-to-head)
 [![multi-hop R@5](https://img.shields.io/badge/multi--hop%20R%405-~86%25_vs_~64%25-2dd4bf?style=flat-square)](#-the-benchmark-the-fair-relational-head-to-head)
-[![retrieval code](https://img.shields.io/badge/retrieval%20code-29%C3%97%20less-16a34a?style=flat-square)](#architecture--what-a-maintainer-owns)
+[![retrieval code](https://img.shields.io/badge/retrieval%20code-29%C3%97%20less-16a34a?style=flat-square)](#architecture---what-a-maintainer-owns)
 [![fork of gbrain](https://img.shields.io/badge/fork%20of-garrytan%2Fgbrain-555?style=flat-square&logo=github)](https://github.com/garrytan/gbrain)
 [![license MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
@@ -51,6 +51,53 @@ lose** (LongMemEval oracle QA: 45.6% vs 56.7%). Every claim regenerates from one
 raw per-question receipts are committed in [`bench/`](bench/); the full audit trail is in
 [`BENCHMARKS.md`](BENCHMARKS.md). **A benchmark you can't rerun is marketing.**
 
+### The same story, as a picture
+
+```mermaid
+timeline
+    title The audit arc - how these numbers earned trust
+    section Build
+        Fork and rebuild : gbrain's memory layer reimplemented on HydraDB : 327 LOC and one recall() vs 9,345 LOC and 6 stages
+    section Too good to be true
+        First numbers are a blowout : HydraDB "wins" everything : 96.5% vs 92.1% published
+        Audit 1 - our harness cheated FOR us : gbrain's graph was never being built : claim RETIRED, integrity gate added
+    section The fair fight
+        Real gbrain, graph ON : even handed a perfect hand-built graph : HydraDB wins relational 88.4 vs 77.4 and multi-hop 86 vs 64
+    section Honest to the end
+        Audit 2 - our harness cheated AGAINST us : unchunked baseline, indexing race, polluted namespaces, n=18 noise : 5 bugs fixed, 90-question re-run
+        Publish everything : recall vindicated at 100% : QA LOSS 45.6 vs 56.7 published, receipts committed
+```
+
+### The scoreboard, wins and loss side by side
+
+Left bars = **HydraDB**, right bars = gbrain / baseline. The last pair is the loss - it stays on the chart.
+
+```mermaid
+xychart-beta
+    title "Head-to-head results (higher is better)"
+    x-axis ["Relational R@5", "Multi-hop R@5", "1-hop R@5 (realistic)", "LME recall@5", "LME QA (our LOSS)"]
+    y-axis "score %" 0 --> 100
+    bar [88.4, 86.0, 91.4, 100.0, 45.6]
+    bar [77.4, 63.8, 84.2, 98.9, 56.7]
+```
+
+<sub>First four pairs: relational head-to-head vs the **real gbrain binary** (perfect-graph control for the first two; both-auto-extract for 1-hop) and LongMemEval oracle evidence recall. Last pair: LongMemEval oracle **QA accuracy, where we lose to a graph-less baseline** - kept on the same chart, same scale, because hiding it is how benchmarks become marketing. Caveats and per-condition detail: [BENCHMARKS.md](BENCHMARKS.md).</sub>
+
+### Why the harness bugs mattered (and which side each one hurt)
+
+```mermaid
+flowchart LR
+    A["First LongMemEval run<br/>baseline 'wins' QA 77.8 vs 50.0"] --> B{"Audit the harness,<br/>not the loser"}
+    B --> C["Bug 1: blind sleep vs async indexing<br/>hurt HydraDB"]
+    B --> D["Bug 2: baseline never chunked<br/>pool ≤ k ⇒ recall 100% by construction<br/>helped baseline"]
+    B --> E["Bug 3: n=18, one flip = ±33pp<br/>hurt everyone"]
+    B --> F["Bug 4: rows list before they index<br/>hurt HydraDB"]
+    B --> G["Bug 5: namespaces polluted by prior runs<br/>hurt HydraDB"]
+    C & D & E & F & G --> H["Fix all five,<br/>re-run 90 questions"]
+    H --> I["Recall: HydraDB 100%<br/>fully vindicated"]
+    H --> J["QA: 45.6 vs 56.7<br/>still a loss - published as one"]
+```
+
 ---
 
 ## 🎯 The goal (north star - keep us aligned)
@@ -82,7 +129,7 @@ raw per-question receipts are committed in [`bench/`](bench/); the full audit tr
 > unchanged (it legitimately uses pgvector/PGLite); the benchmark *reproduces* gbrain's
 > algorithm, it never reads a real gbrain database.
 >
-> **Legend:** ✅ done · 🟡 partial · ◐ delegated to HydraDB / OS · ⬜ not started. *Last updated: 2026-06-19.*
+> **Legend:** ✅ done · 🟡 partial · ◐ delegated to HydraDB / OS · ⬜ not started. *Last updated: 2026-07-10.*
 
 **Stage: core memory loop + the everyday product surface (sync, connectors, source scoping, enrich, briefing, export, chat) all migrated. What's left is mostly gbrain's heavy ops (mounts, schema/lens packs, identity, cron, advisor).**
 
@@ -455,7 +502,7 @@ python3 -m bench.lme_scale --data bench/data/longmemeval_s_cleaned.json --limit 
 | Self-wiring knowledge graph (typed edges) | **native** via `infer=True` - no extraction code |
 | Synthesis layer (cited prose + gap analysis) | `brain.think()` (Gemini grounding over retrieved chunks) |
 | 30+ tool MCP server (stdio) | `hydrabrain serve` (FastMCP: capture/read_url/search/think/briefing/enrich/graph/status) |
-| Eval framework (LongMemEval-style P@5) | `bench/` - two benchmarks, recall@5 / MRR / LLM-judge / QA acc |
+| Eval framework (LongMemEval-style P@5) | `bench/` - four benchmarks, R@5 / P@5 / MRR / LLM-judge QA + committed receipts |
 | Bulk sync (incremental dir ingest) | `brain.sync(paths)` / `hydrabrain sync <dir>` - content-hash dedup, idempotent |
 | Onboarding (`gbrain init`) | `hydrabrain init` / web setup screen - Free-mode vs keys, writes `~/.hydrabrain/.env` |
 | Ingestion connectors (consume the web) | `brain.ingest_url(url)` / `hydrabrain read <url>` - articles + tweets (free oEmbed) + YouTube transcripts |
@@ -503,8 +550,8 @@ claude mcp add hydrabrain -- python3 -m hydrabrain.cli serve
 ## Reproduce
 
 ```bash
-pip install rank-bm25 requests python-dotenv google-genai anthropic
-# .env needs HYDRADB_API_KEY (write access) and GEMINI_API_KEY
+pip install rank-bm25 requests python-dotenv google-genai anthropic huggingface_hub
+# .env needs HYDRADB_API_KEY (write access), GEMINI_API_KEY, ANTHROPIC_API_KEY
 
 # The fair relational head-to-head (real gbrain, graph ON) - the headline
 python3 -m bench.relational_v2 --seed-edges --report   # gbrain handed a perfect graph
@@ -515,6 +562,13 @@ python3 -m bench.architecture
 
 # LongMemEval-S at scale (vs a BM25 baseline)
 python3 -m bench.lme_scale --limit 42 --hydra-wait 120
+
+# LongMemEval oracle, 90 questions (auto-downloads the dataset, checkpoints
+# every question, resumes across free-tier quota walls; --fresh to rescore)
+python3 -m bench.longmemeval --report
+
+# Offline test suite (no keys, no network)
+python3 -m pytest tests/test_bench_harness.py -q
 ```
 
 ### Integrity ledger - how we keep it fair
@@ -527,6 +581,10 @@ python3 -m bench.lme_scale --limit 42 --hydra-wait 120
 - HydraDB is **hosted → non-deterministic**: quote ranges, not exact decimals. gbrain's side is deterministic.
 - The earlier "wins both corpora" claim was **retired** - it had run gbrain with its graph
   effectively off. Catching that in our own harness is why these numbers are trustworthy.
+- The LongMemEval oracle harness went through the same treatment in the other direction:
+  **five bugs fixed** (one of which handed the *baseline* a free 100% recall), re-run at n=90,
+  and the resulting **QA loss published** (45.6% vs 56.7%) alongside HydraDB's perfect recall.
+  Fairness cuts both ways or it isn't fairness.
 
 ## Layout
 
@@ -579,4 +637,4 @@ original code written against [HydraDB](https://hydradb.com); only the *capabili
 and CLI command names are modeled on gbrain. Huge respect to **Garry Tan** for gbrain - it's
 the system this one set out to match, and beat, on the merits.
 
-<div align="center"><sub>Built to prove a point, honestly. HydraDB gives you gbrain's graph advantage natively - and the numbers hold up.</sub></div>
+<div align="center"><sub>Built to prove a point, honestly. HydraDB gives you gbrain's graph advantage natively - the numbers hold up, and where they don't, we publish that too.</sub></div>
