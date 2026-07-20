@@ -19,6 +19,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+anthropic = [
+    "anthropic>=0.40",
+]
 bench = [
     "numpy>=1.26",
     "scipy>=1.13",

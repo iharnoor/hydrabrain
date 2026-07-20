@@ -23,6 +23,22 @@ def run(engine) -> list[dict]:
         "gemini": f"Gemini key set — using {config.GEMINI_CHAT_MODEL}",
         "none": "no LLM key — think/enrich degraded. Set ANTHROPIC_API_KEY or GEMINI_API_KEY",
     }[provider]
+    if provider == "claude":
+        try:
+            import anthropic  # noqa: F401
+        except ImportError:
+            if config.have_gemini():
+                detail = (
+                    f"ANTHROPIC_API_KEY set but `anthropic` package not installed — "
+                    f"falling back to Gemini ({config.GEMINI_CHAT_MODEL}). "
+                    f"Run `pip install anthropic` to use Claude instead."
+                )
+            else:
+                llm_ok = False
+                detail = (
+                    "ANTHROPIC_API_KEY set but `anthropic` package not installed, "
+                    "and no GEMINI_API_KEY to fall back to. Run `pip install anthropic`."
+                )
     chk("llm_key", llm_ok, detail)
 
     # 3. API connectivity + memory count
