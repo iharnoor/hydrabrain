@@ -38,7 +38,7 @@ def _load_env() -> None:
 
 def reload() -> None:
     """Re-read the .env files and refresh module-level keys (after onboarding writes them)."""
-    global HYDRADB_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY
+    global HYDRADB_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY
     if load_dotenv is not None:
         for path in _ENV_CANDIDATES:
             if path.exists():
@@ -46,6 +46,7 @@ def reload() -> None:
     HYDRADB_API_KEY = os.getenv("HYDRADB_API_KEY", "")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 
 _load_env()
@@ -53,6 +54,7 @@ _load_env()
 HYDRADB_API_KEY = os.getenv("HYDRADB_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # A HydraDB free plan is capped at one tenant; reuse it everywhere.
 DEFAULT_TENANT = os.getenv("HYDRABRAIN_TENANT", "test1")
@@ -72,6 +74,7 @@ HYDRA_RECALL_ALPHA = float(os.getenv("HYDRA_RECALL_ALPHA", "1.0"))
 GEMINI_CHAT_MODEL = os.getenv("HYDRABRAIN_CHAT_MODEL", "gemini-3.5-flash")  # 2.5-flash retired by Google (404s as of 2026-07)
 GEMINI_EMBED_MODEL = os.getenv("HYDRABRAIN_EMBED_MODEL", "gemini-embedding-001")
 ANTHROPIC_CHAT_MODEL = os.getenv("HYDRABRAIN_ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+OPENAI_CHAT_MODEL = os.getenv("HYDRABRAIN_OPENAI_MODEL", "gpt-4o-mini")
 
 # Where to get free keys (shown in onboarding "free mode").
 HYDRADB_SIGNUP_URL = "https://hydradb.com"
@@ -90,9 +93,13 @@ def have_anthropic() -> bool:
     return bool(os.getenv("ANTHROPIC_API_KEY", ""))
 
 
+def have_openai() -> bool:
+    return bool(os.getenv("OPENAI_API_KEY", ""))
+
+
 def have_llm() -> bool:
     """True if any synthesis backend is available."""
-    return have_anthropic() or have_gemini()
+    return have_anthropic() or have_openai() or have_gemini()
 
 
 def needs_onboarding() -> bool:

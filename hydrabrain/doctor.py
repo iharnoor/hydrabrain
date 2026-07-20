@@ -14,32 +14,47 @@ def run(engine) -> list[dict]:
     chk("hydradb_key", bool(config.HYDRADB_API_KEY),
         "set" if config.HYDRADB_API_KEY else "missing — run `hydrabrain init`")
 
-    # 2. LLM key (Claude preferred, Gemini fallback)
-    from . import llm as _llm
-    provider = _llm.active_provider()
-    llm_ok = provider != "none"
-    detail = {
-        "claude": f"Anthropic key set — using {config.ANTHROPIC_CHAT_MODEL}",
-        "gemini": f"Gemini key set — using {config.GEMINI_CHAT_MODEL}",
-        "none": "no LLM key — think/enrich degraded. Set ANTHROPIC_API_KEY or GEMINI_API_KEY",
-    }[provider]
-    if provider == "claude":
-        try:
-            import anthropic  # noqa: F401
-        except ImportError:
-            if config.have_gemini():
-                detail = (
-                    f"ANTHROPIC_API_KEY set but `anthropic` package not installed — "
-                    f"falling back to Gemini ({config.GEMINI_CHAT_MODEL}). "
-                    f"Run `pip install anthropic` to use Claude instead."
-                )
-            else:
-                llm_ok = False
-                detail = (
-                    "ANTHROPIC_API_KEY set but `anthropic` package not installed, "
-                    "and no GEMINI_API_KEY to fall back to. Run `pip install anthropic`."
-                )
-    chk("llm_key", llm_ok, detail)
+    # 2. LLM key (Claude → OpenAI → Gemini, first configured+installed wins)
+    # Mirrors hydrabrain.llm's provider priority. sdk_module is None for Gemini
+    # since google-genai is a hard dependency — always importable.
+    _PROVIDER_CHECKS = (
+        ("claude", config.have_anthropic, "anthropic", "pip install anthropic",
+         f"Anthropic key set — using {config.ANTHROPIC_CHAT_MODEL}"),
+        ("openai", config.have_openai, "openai", "pip install openai",
+         f"OpenAI key set — using {config.OPENAI_CHAT_MODEL}"),
+        ("gemini", config.have_gemini, None, None,
+         f"Gemini key set — using {config.GEMINI_CHAT_MODEL}"),
+    )
+    configured = [p for p in _PROVIDER_CHECKS if p[1]()]
+    if not configured:
+        chk("llm_key", False,
+            "no LLM key — think/enrich degraded. "
+            "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY")
+    else:
+        runnable = None
+        skipped = []
+        for label, _have, sdk_module, install_hint, ok_detail in configured:
+            if sdk_module is None:
+                runnable = (label, ok_detail)
+                break
+            try:
+                __import__(sdk_module)
+                runnable = (label, ok_detail)
+                break
+            except ImportError:
+                skipped.append((label, sdk_module, install_hint))
+        if runnable:
+            label, ok_detail = runnable
+            detail = ok_detail
+            if skipped:
+                skipped_desc = ", ".join(f"{lbl} (`{mod}` not installed)" for lbl, mod, _ in skipped)
+                detail += f". Skipped: {skipped_desc}"
+            chk("llm_key", True, detail)
+        else:
+            hints = " / ".join(f"`{hint}`" for _, _, hint in skipped)
+            chk("llm_key", False,
+                f"key(s) set for {', '.join(lbl for lbl, _, _ in skipped)} but SDK(s) not "
+                f"installed, and no Gemini key to fall back to. Run {hints}.")
 
     # 3. API connectivity + memory count
     try:
