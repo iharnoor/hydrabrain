@@ -22,12 +22,21 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 from . import config
 
 log = logging.getLogger(__name__)
 
 TIMEOUT_MS = int(os.getenv("HYDRABRAIN_LLM_TIMEOUT_MS", "90000"))
+RETRY_ATTEMPTS = int(os.getenv("HYDRABRAIN_LLM_RETRY_ATTEMPTS", "3"))
+RETRY_BASE_DELAY_S = float(os.getenv("HYDRABRAIN_LLM_RETRY_BASE_DELAY_S", "1"))
+
+# HTTP/provider status codes worth retrying, then falling through on: rate
+# limits and server-side overload/unavailability. NOT auth/bad-request codes
+# (401/403/400) — those are misconfiguration, not an outage, and silently
+# routing around them would hide a real problem.
+_TRANSIENT_STATUS = {408, 409, 429, 500, 502, 503, 504, 529}
 
 _anthropic_cached = None
 _openai_cached = None
@@ -36,6 +45,40 @@ _gemini_cached = None
 
 class LLMSDKMissing(RuntimeError):
     """Raised when a provider's API key is set but its SDK package isn't installed."""
+
+
+def _status_of(exc: BaseException) -> int | None:
+    """Best-effort HTTP status extraction across anthropic/openai/google-genai exceptions."""
+    for attr in ("status_code", "code"):
+        val = getattr(exc, attr, None)
+        if isinstance(val, int):
+            return val
+    return None
+
+
+def _is_transient(exc: BaseException) -> bool:
+    return _status_of(exc) in _TRANSIENT_STATUS
+
+
+def _call_with_retries(fn, prompt: str, model: str | None, label: str) -> str:
+    """Call a provider's generate function, retrying transient failures with backoff."""
+    last_exc: Exception | None = None
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            return fn(prompt, model)
+        except LLMSDKMissing:
+            raise  # not retryable — the caller falls through to the next provider
+        except Exception as e:
+            if not _is_transient(e) or attempt == RETRY_ATTEMPTS - 1:
+                raise
+            last_exc = e
+            delay = RETRY_BASE_DELAY_S * (2 ** attempt)
+            log.warning(
+                "%s call failed (%s), retrying in %.1fs (attempt %d/%d)...",
+                label, e, delay, attempt + 1, RETRY_ATTEMPTS,
+            )
+            time.sleep(delay)
+    raise last_exc  # pragma: no cover — loop always returns or raises above
 
 
 # ── Anthropic ──────────────────────────────────────────────────────────────
@@ -142,23 +185,40 @@ _PROVIDERS = (
 
 
 def generate(prompt: str, model: str | None = None) -> str:
-    """Generate text from a prompt, trying each configured provider in priority order."""
+    """Generate text from a prompt, trying each configured provider in priority order.
+
+    Within a provider, transient failures (rate limit / overload) retry with
+    backoff; once retries are exhausted (or the SDK isn't installed), falls
+    through to the next configured provider. Non-transient errors (bad auth,
+    bad request) raise immediately without falling through — that's a real
+    misconfiguration, not an outage, and silently routing around it would
+    hide the problem instead of surfacing it.
+    """
     tried = []
+    skipped: list[tuple[str, Exception]] = []
     for have_key, provider_generate, label in _PROVIDERS:
         if not have_key():
             continue
         tried.append(label)
         try:
-            return provider_generate(prompt, model)
+            return _call_with_retries(provider_generate, prompt, model, label)
         except LLMSDKMissing as e:
             log.warning("%s — trying next configured provider.", e)
+            skipped.append((label, e))
+            continue
+        except Exception as e:
+            if not _is_transient(e):
+                raise
+            log.warning(
+                "%s exhausted retries (%s) — trying next configured provider.", label, e,
+            )
+            skipped.append((label, e))
             continue
     if tried:
+        reasons = "; ".join(f"{label}: {exc}" for label, exc in skipped)
         raise RuntimeError(
-            f"All configured LLM provider(s) failed to run ({', '.join(tried)}) — "
-            "each had its API key set but its SDK package wasn't installed. "
-            "Install at least one of: anthropic, openai. Gemini (google-genai) "
-            "ships with hydrabrain, so GEMINI_API_KEY alone always works."
+            f"All configured LLM provider(s) are currently unavailable ({', '.join(tried)}). "
+            f"{reasons}\nThis is usually transient (rate limit / provider overload) — try again shortly."
         )
     raise RuntimeError(
         "No LLM key configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY.\n"
